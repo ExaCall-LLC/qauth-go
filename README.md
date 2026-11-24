@@ -246,6 +246,7 @@ err = org.SSO.Remove(ctx)
 // child organizations and white-label sign-in look ("" = the org's own; an app id = its override)
 subs, err := org.SubOrgs.List(ctx)
 child, err := org.SubOrgs.Create(ctx, qauth.NewSubOrg{Name: "Branch", AdminEmail: "boss@shop.com"})
+// the first admin may be anyone; child.Invited: a new one was emailed (no password comes back)
 b, err := org.Branding.Get(ctx, "")
 b, err = org.Branding.Set(ctx, "", qauth.BrandingSpec{Accent: "#5B21B6", Mode: "auto", Language: "ar"})
 err = org.Branding.Remove(ctx, "")
@@ -328,6 +329,11 @@ keys generated in the test.
 
 ## Changes
 
+- **0.6.0** (2026-11-25): a parent organization never manages a child's people (its people and keys see them
+  read-only; adding, removing, resetting and giving roles in a child answer 403). `NewSubOrg.Invite` and
+  `CreatedSubOrg.Invited`: a child's first admin may be anyone, you too (an existing account is added as it is; a new
+  one is emailed, no password comes back); `RoleSpec.LevelID` and `AppRole.LevelID` (roles per level).
+  `org.NewAdmin` is deprecated: setting a new admin is your tenant's. Additions only.
 - **0.5.0** (2026-11-24): levels per product. `MyOrg` gains `ParentOrgID`, `LevelName`, `IsInternal` and
   `Levels` (API id -> your tenant's levels there, top first); `GivableRole` gains `LevelID`, `LevelName`,
   `BuiltIn` and `Reason`; `NewSubOrg.Levels`; `org.Levels` and `org.NewAdmin` (a child's direct parent sets its

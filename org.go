@@ -294,7 +294,9 @@ func (x *SubOrgs) List(ctx context.Context) (*Page[Org], error) {
 }
 
 // Create creates a direct child organization (inheriting directory and app
-// access unless isolated).
+// access unless isolated). Its first admin may be anyone, you too: an
+// existing account is added as it is; a new one is emailed (Invited) and no
+// password comes back.
 func (x *SubOrgs) Create(ctx context.Context, s NewSubOrg) (*CreatedSubOrg, error) {
 	var out CreatedSubOrg
 	return ret(&out, x.o.t.call(ctx, http.MethodPost, x.o.p("/suborgs"), nil, s, &out))
@@ -306,13 +308,11 @@ func (o *OrgClient) Levels(ctx context.Context) (*OrgLevels, error) {
 	return ret(&out, o.t.call(ctx, http.MethodGet, o.p("/levels"), nil, nil, &out))
 }
 
-// NewAdmin sets a new admin of this (child) organization; only its DIRECT
-// parent may (org.suborgs.admin.replace in a role of the level directly
-// above it, or the parent's key with qauth:org:members), and never the
-// caller nor anyone of the parent or above. An existing member gets the
-// roles a first admin gets and the built-in Admin of each of its levels
-// (UserID); anyone else is invited by email (Invited). No password ever
-// comes back.
+// NewAdmin sets a new admin of an organization that lost its admins.
+//
+// Deprecated: since 0.6.0 a parent organization never manages a child's
+// people; this is your tenant's (Console, or POST /tenant/orgs/{id}/new-admin).
+// From an organization it answers 403.
 func (o *OrgClient) NewAdmin(ctx context.Context, email string) (*NewAdminResult, error) {
 	var out NewAdminResult
 	return ret(&out, o.t.call(ctx, http.MethodPost, o.p("/new-admin"), nil, map[string]string{"email": email}, &out))

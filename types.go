@@ -371,12 +371,14 @@ type AppRole struct {
 	ID    string `json:"id"`
 	AppID string `json:"appId"`
 	// OrgID is empty for the app's built-in roles.
-	OrgID          string    `json:"orgId,omitempty"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Permissions    []string  `json:"permissions"`
-	OrgPermissions []string  `json:"orgPermissions,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
+	OrgID          string   `json:"orgId,omitempty"`
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	Permissions    []string `json:"permissions"`
+	OrgPermissions []string `json:"orgPermissions,omitempty"`
+	// LevelID is the role's level (empty: a floating role).
+	LevelID   string    `json:"levelId,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // RoleSpec creates or changes an organization's own role.
@@ -386,6 +388,10 @@ type RoleSpec struct {
 	// Permissions are permission ids of the app.
 	Permissions    []string `json:"permissions"`
 	OrgPermissions []string `json:"orgPermissions,omitempty"`
+	// LevelID is the role's level (your tenant's level id): it holds only
+	// that level's permissions plus floating ones and is given only where the
+	// organization has the level. Empty: a floating role. Set at creation.
+	LevelID string `json:"levelId,omitempty"`
 }
 
 // PersonRoles is who holds which roles of one app.
@@ -431,14 +437,21 @@ type NewSubOrg struct {
 	// Levels per API (API id -> level ids). Left out: in each API, the level
 	// directly below this organization's lowest level that has one below.
 	Levels map[string][]string `json:"levels,omitempty"`
+	// Invite emails the first admin (a new account's one-time password goes
+	// in the email). Always on for a new account when an organization
+	// creates its child: it never sees a password. Needs a default email channel.
+	Invite bool `json:"invite,omitempty"`
 }
 
 // CreatedSubOrg is a new child organization.
 type CreatedSubOrg struct {
 	Org Org `json:"org"`
-	// InitialAdminPassword is set only when the admin's account was new.
+	// InitialAdminPassword is set only for your tenant's own admins, when
+	// the admin's account was new and not emailed. Never from a parent.
 	InitialAdminPassword string `json:"initialAdminPassword,omitempty"`
 	AdminExisting        bool   `json:"adminExisting"`
+	// Invited: the first admin was emailed.
+	Invited bool `json:"invited,omitempty"`
 }
 
 // Branding is an organization's white-label sign-in look.

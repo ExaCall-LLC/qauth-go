@@ -423,6 +423,37 @@ func TestLiveSubOrgsBrandingResetPassword(t *testing.T) {
 		t.Fatal(e.Message)
 	}
 	wantStatus(t, c.As("shop-member-token").Org(s.Shop).Members.ResetPassword(ctx, added.User.ID, "Another-good-pass-9!", false), 403)
+
+	// a child organization: its first admin may be the caller (an existing
+	// account, added as it is); a new one is emailed, no password comes back
+	self := must(org.SubOrgs.Create(ctx, NewSubOrg{Name: "Self", AdminEmail: "admin@shop.test"}))(t)
+	if !self.AdminExisting || self.InitialAdminPassword != "" {
+		t.Fatalf("the caller as first admin: %+v", self)
+	}
+	made := must(org.SubOrgs.Create(ctx, NewSubOrg{Name: "Branch Go", AdminEmail: "boss@branch-go.test"}))(t)
+	if !made.Invited || made.InitialAdminPassword != "" || made.Org.ParentOrgID != s.Shop {
+		t.Fatalf("a parent's new child: %+v", made)
+	}
+	byKey := must(c.WithKey(s.OrgKey).Org(s.Shop).SubOrgs.Create(ctx, NewSubOrg{Name: "Branch Go key", AdminEmail: "boss@branch-gokey.test"}))(t)
+	if !byKey.Invited || byKey.InitialAdminPassword != "" {
+		t.Fatalf("the key's new child: %+v", byKey)
+	}
+	// a parent never manages the child's people
+	child := c.As("shop-admin-token").Org(made.Org.ID)
+	_, err = child.Members.Add(ctx, NewMember{Email: "staff@branch-go.test"})
+	if e := wantStatus(t, err, 403); !strings.Contains(e.Message, "own admins") {
+		t.Fatal(e.Message)
+	}
+	if _, err := child.Members.List(ctx); err != nil {
+		t.Fatalf("a parent sees the child's people: %v", err)
+	}
+
+	// roles carry their level
+	cafe := c.As("cafe-admin-token").Org(s.Cafe)
+	r := must(cafe.Roles.Create(ctx, s.App, RoleSpec{Name: "Customer helper", Permissions: []string{}, LevelID: s.CustomerLevel}))(t)
+	if r.LevelID != s.CustomerLevel {
+		t.Fatalf("the role's level: %+v", r)
+	}
 }
 
 func TestLiveMyAccount(t *testing.T) {
