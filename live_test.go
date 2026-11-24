@@ -60,6 +60,18 @@ func TestLiveProfileAndOrgs(t *testing.T) {
 	if o2 := must(c.Orgs(ctx, Token("shop-admin-token")))(t); len(o2) != 1 || o2[0].ID != s.Shop {
 		t.Fatalf("%+v", o2)
 	}
+	if len(orgs.Items[0].Levels) != 0 || orgs.Items[0].ParentOrgID != "" {
+		t.Fatalf("Shop has no levels and no parent: %+v", orgs.Items[0])
+	}
+	// levels per product: Cafe is a Customer of the API
+	cafe := must(c.Orgs(ctx, Token("cafe-admin-token")))(t)
+	if len(cafe) != 1 || len(cafe[0].Levels[s.API]) != 1 || cafe[0].Levels[s.API][0].Name != "Customer" || cafe[0].Levels[s.API][0].ID != s.CustomerLevel || cafe[0].IsInternal {
+		t.Fatalf("Cafe's levels: %+v", cafe)
+	}
+	lv := must(c.As("cafe-admin-token").Org(s.Cafe).Levels(ctx))(t)
+	if lv.OrgID != s.Cafe || len(lv.Levels[s.API]) != 1 {
+		t.Fatalf("org levels: %+v", lv)
+	}
 }
 
 func TestLiveBadToken(t *testing.T) {

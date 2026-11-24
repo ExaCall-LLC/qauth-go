@@ -27,6 +27,8 @@ type seedInfo struct {
 	API        string `json:"api"`
 	Permission string `json:"permission"`
 	AgentRole  string `json:"agentRole"`
+	// CustomerLevel: Cafe is a Customer of API (levels per product)
+	CustomerLevel string `json:"customerLevel"`
 }
 
 var testServer struct {

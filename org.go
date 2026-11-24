@@ -300,6 +300,24 @@ func (x *SubOrgs) Create(ctx context.Context, s NewSubOrg) (*CreatedSubOrg, erro
 	return ret(&out, x.o.t.call(ctx, http.MethodPost, x.o.p("/suborgs"), nil, s, &out))
 }
 
+// Levels reads the organization's levels in each API.
+func (o *OrgClient) Levels(ctx context.Context) (*OrgLevels, error) {
+	var out OrgLevels
+	return ret(&out, o.t.call(ctx, http.MethodGet, o.p("/levels"), nil, nil, &out))
+}
+
+// NewAdmin sets a new admin of this (child) organization; only its DIRECT
+// parent may (org.suborgs.admin.replace in a role of the level directly
+// above it, or the parent's key with qauth:org:members), and never the
+// caller nor anyone of the parent or above. An existing member gets the
+// roles a first admin gets and the built-in Admin of each of its levels
+// (UserID); anyone else is invited by email (Invited). No password ever
+// comes back.
+func (o *OrgClient) NewAdmin(ctx context.Context, email string) (*NewAdminResult, error) {
+	var out NewAdminResult
+	return ret(&out, o.t.call(ctx, http.MethodPost, o.p("/new-admin"), nil, map[string]string{"email": email}, &out))
+}
+
 // OrgBranding is the organization's white-label sign-in look; appID ""
 // means the organization's own, an app's id its override for that app.
 type OrgBranding struct{ o *OrgClient }

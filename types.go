@@ -28,11 +28,41 @@ const (
 	RoleMember  Role = "member"
 )
 
-// MyOrg is one of the person's organizations, with their role in it.
+// MyOrg is one of the person's organizations, with their role in it, its
+// place in the tree and its levels in each API (your tenant's level names:
+// read them, qAuth checks them).
 type MyOrg struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Role Role   `json:"role"`
+	// ParentOrgID is the parent organization ("" = a top organization).
+	ParentOrgID string `json:"parentOrgId,omitempty"`
+	// LevelName is the organization's tenant level name, if it has one.
+	LevelName string `json:"levelName,omitempty"`
+	// IsInternal: your tenant's own organization.
+	IsInternal bool `json:"isInternal"`
+	// Levels maps an API's id to the organization's levels there, top first
+	// (empty: no levels; everything works as without levels).
+	Levels map[string][]LevelRef `json:"levels,omitempty"`
+}
+
+// LevelRef names one level of your tenant (Operator, Provider, Customer…).
+type LevelRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// NewAdminResult is what setting a child's new admin did (never a password).
+type NewAdminResult struct {
+	UserID       string `json:"userId,omitempty"`
+	Invited      bool   `json:"invited"`
+	InvitationID string `json:"invitationId,omitempty"`
+}
+
+// OrgLevels is an organization's levels in each API (API id -> level ids).
+type OrgLevels struct {
+	OrgID  string              `json:"orgId"`
+	Levels map[string][]string `json:"levels"`
 }
 
 // Profile is the signed-in person and their organizations.
@@ -125,6 +155,13 @@ type GivableRole struct {
 	CanGive        bool     `json:"canGive"`
 	// Missing says why it can't be given: what the caller lacks.
 	Missing []string `json:"missing,omitempty"`
+	// LevelID / LevelName: the role's level ("" = floating); BuiltIn: the
+	// level's built-in Admin. Reason: why it can't be given here (the
+	// organization lacks its level for that API).
+	LevelID   string `json:"levelId,omitempty"`
+	LevelName string `json:"levelName,omitempty"`
+	BuiltIn   bool   `json:"builtIn,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // Member is a person of an organization.
@@ -391,6 +428,9 @@ type NewSubOrg struct {
 	AdminEmail        string `json:"adminEmail"`
 	LevelID           string `json:"levelId,omitempty"`
 	IsolatedDirectory bool   `json:"isolatedDirectory,omitempty"`
+	// Levels per API (API id -> level ids). Left out: in each API, the level
+	// directly below this organization's lowest level that has one below.
+	Levels map[string][]string `json:"levels,omitempty"`
 }
 
 // CreatedSubOrg is a new child organization.

@@ -22,7 +22,7 @@ camelCase) and the same behaviour.
 The module is public: no account, token or `GOPRIVATE` needed.
 
 ```bash
-go get github.com/ExaCall-LLC/qauth-go@v0.4.0
+go get github.com/ExaCall-LLC/qauth-go@v0.5.0
 ```
 
 ```go
@@ -328,6 +328,11 @@ keys generated in the test.
 
 ## Changes
 
+- **0.5.0** (2026-11-24): levels per product. `MyOrg` gains `ParentOrgID`, `LevelName`, `IsInternal` and
+  `Levels` (API id -> your tenant's levels there, top first); `GivableRole` gains `LevelID`, `LevelName`,
+  `BuiltIn` and `Reason`; `NewSubOrg.Levels`; `org.Levels` and `org.NewAdmin` (a child's direct parent sets its
+  new admin: an existing member gets the roles, anyone else is invited by email; never a password),
+  `NewAdminResult`. Additions only.
 - **0.4.0** (2026-11-24): `org.Design`: the organization's sign-in page design (`Get`, `Set`, `Reset`,
   `AddPicture`), with the layout (simple or split, form at the start or end), form-side settings, side panel
   blocks and the platform's limits; `Branding` and `BrandingSpec` carry the `Design` too (a spec without it
