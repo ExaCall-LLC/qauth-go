@@ -2,6 +2,7 @@ package qauth
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -33,6 +34,8 @@ type OrgClient struct {
 	SubOrgs *SubOrgs
 	// Branding is the organization's white-label sign-in look.
 	Branding *OrgBranding
+	// Design is the organization's sign-in page design (layout, side panel).
+	Design *OrgDesign
 }
 
 func newOrgClient(t *transport, id string) *OrgClient {
@@ -46,6 +49,7 @@ func newOrgClient(t *transport, id string) *OrgClient {
 	o.SSO = &SSO{o}
 	o.SubOrgs = &SubOrgs{o}
 	o.Branding = &OrgBranding{o}
+	o.Design = &OrgDesign{o}
 	return o
 }
 
@@ -315,4 +319,35 @@ func (x *OrgBranding) Set(ctx context.Context, appID string, s BrandingSpec) (*B
 // Remove removes the override (people only).
 func (x *OrgBranding) Remove(ctx context.Context, appID string) error {
 	return x.o.t.call(ctx, http.MethodDelete, x.o.p("/branding"), url.Values{"app": {appID}}, nil, nil)
+}
+
+// OrgDesign is the organization's sign-in page design: the logo and
+// colours with the layout, the form side's settings and the side panel.
+// appID "" means the organization's own look, an app's id its look for that
+// app.
+type OrgDesign struct{ o *OrgClient }
+
+// Get reads the look, what it inherits and the platform's limits.
+func (x *OrgDesign) Get(ctx context.Context, appID string) (*DesignView, error) {
+	var out DesignView
+	return ret(&out, x.o.t.call(ctx, http.MethodGet, x.o.p("/design"), url.Values{"app": {appID}}, nil, &out))
+}
+
+// Set saves the look (people only: admins with settings rights).
+func (x *OrgDesign) Set(ctx context.Context, appID string, s BrandingSpec) (*DesignView, error) {
+	var out DesignView
+	return ret(&out, x.o.t.call(ctx, http.MethodPut, x.o.p("/design"), url.Values{"app": {appID}}, s, &out))
+}
+
+// Reset removes the look: the organization inherits again (people only).
+func (x *OrgDesign) Reset(ctx context.Context, appID string) error {
+	return x.o.t.call(ctx, http.MethodDelete, x.o.p("/design"), url.Values{"app": {appID}}, nil, nil)
+}
+
+// AddPicture keeps a picture (PNG, JPEG, WebP or GIF) for the design; use
+// its Hash in a panel background or an image block (people only).
+func (x *OrgDesign) AddPicture(ctx context.Context, data []byte) (*DesignFile, error) {
+	var out DesignFile
+	body := map[string]string{"data": base64.StdEncoding.EncodeToString(data)}
+	return ret(&out, x.o.t.call(ctx, http.MethodPost, x.o.p("/design/files"), nil, body, &out))
 }

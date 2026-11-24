@@ -22,7 +22,7 @@ camelCase) and the same behaviour.
 The module is public: no account, token or `GOPRIVATE` needed.
 
 ```bash
-go get github.com/ExaCall-LLC/qauth-go@v0.3.0
+go get github.com/ExaCall-LLC/qauth-go@v0.4.0
 ```
 
 ```go
@@ -249,6 +249,19 @@ child, err := org.SubOrgs.Create(ctx, qauth.NewSubOrg{Name: "Branch", AdminEmail
 b, err := org.Branding.Get(ctx, "")
 b, err = org.Branding.Set(ctx, "", qauth.BrandingSpec{Accent: "#5B21B6", Mode: "auto", Language: "ar"})
 err = org.Branding.Remove(ctx, "")
+
+// the sign-in page design ("" = the org's own look; an app id = its look for that app)
+pic, err := org.Design.AddPicture(ctx, pngBytes) // PNG, JPEG, WebP or GIF; never SVG
+v, err := org.Design.Set(ctx, "", qauth.BrandingSpec{Accent: "#1F2937", Design: &qauth.Design{
+	Layout: "split", FormSide: "end", Font: "Public Sans", Phone: "banner",
+	Texts: &qauth.DesignTexts{EN: qauth.TitleText{Title: "Sign in to Shop"}, AR: qauth.TitleText{Title: "تسجيل الدخول إلى المتجر"}},
+	Panel: &qauth.DesignPanel{
+		Background: qauth.PanelBackground{Kind: "image", Image: pic.Hash, Overlay: "#FFFFFF", OverlayOpacity: 88},
+		Blocks: []qauth.DesignBlock{{ID: "h1", Type: "heading", Text: &qauth.I18nText{EN: "Welcome", AR: "مرحبًا"}, Size: "m", Align: "center"}},
+	},
+}})
+// v.Own, v.InheritedFrom["level"], v.Limits.Fonts / MaxBlocks ...
+err = org.Design.Reset(ctx, "")                  // inherit again
 ```
 
 Lists answer `*Page[T]{Items, Pagination}`. Admins manage the organization; managers manage people
@@ -315,6 +328,10 @@ keys generated in the test.
 
 ## Changes
 
+- **0.4.0** (2026-11-24): `org.Design`: the organization's sign-in page design (`Get`, `Set`, `Reset`,
+  `AddPicture`), with the layout (simple or split, form at the start or end), form-side settings, side panel
+  blocks and the platform's limits; `Branding` and `BrandingSpec` carry the `Design` too (a spec without it
+  keeps the saved one).
 - **0.3.0** (2026-11-24): new public module path `github.com/ExaCall-LLC/qauth-go` (MIT); same code as
   0.2.0. Change the import path; nothing else changed.
 - **0.2.0** (2026-11-24): `FromIssuer(ctx, issuer, clientID, opts...)`: set up from your tenant's issuer and

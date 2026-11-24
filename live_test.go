@@ -2,6 +2,7 @@ package qauth
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -531,5 +532,37 @@ func TestLiveVerifications(t *testing.T) {
 	r := must(me.Verifications.Start(ctx, "Money transfer", map[string]string{"amount": "1"}, VerifyOptions{}))(t)
 	if again := must(me.Verifications.Resend(ctx, r.RequestID, VerifyOptions{Channel: "voice"}))(t); again.Channel != "voice" {
 		t.Fatalf("%+v", again)
+	}
+}
+
+func TestLiveOrgDesign(t *testing.T) {
+	c, s := live(t)
+	ctx := context.Background()
+	org := c.As("shop-admin-token").Org(s.Shop)
+	png, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+	pic := must(org.Design.AddPicture(ctx, png))(t)
+	if pic.ContentType != "image/png" || len(pic.Hash) != 64 {
+		t.Fatalf("%+v", pic)
+	}
+	v := must(org.Design.Set(ctx, "", BrandingSpec{Accent: "#112233", Design: &Design{Layout: "split", FormSide: "start",
+		Panel: &DesignPanel{Background: PanelBackground{Kind: "image", Image: pic.Hash, Overlay: "#FFFFFF", OverlayOpacity: 50},
+			Blocks: []DesignBlock{{ID: "l", Type: "link", URL: "https://shop.test/help", Label: &I18nText{EN: "Help", AR: "مساعدة"}, Style: "outline"}}}}}))(t)
+	if !v.Own || v.Look.Design.FormSide != "start" || v.Look.Accent != "#112233" || v.Limits.MaxBlocks == 0 {
+		t.Fatalf("%+v", v)
+	}
+	// the old branding call keeps the design
+	if _, err := org.Branding.Set(ctx, "", BrandingSpec{Accent: "#445566"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := must(org.Design.Get(ctx, ""))(t); got.Look.Design.Layout != "split" || got.Look.Accent != "#445566" {
+		t.Fatalf("%+v", got.Look)
+	}
+	_, err := org.Design.Set(ctx, "", BrandingSpec{Design: &Design{Layout: "split", Panel: &DesignPanel{Background: PanelBackground{Kind: "color"},
+		Blocks: []DesignBlock{{ID: "x", Type: "text", Text: &I18nText{EN: "<b>hi</b>"}}}}}})
+	wantStatus(t, err, 422)
+	_, err = c.As("shop-member-token").Org(s.Shop).Design.Set(ctx, "", BrandingSpec{})
+	wantStatus(t, err, 403)
+	if err := org.Design.Reset(ctx, ""); err != nil {
+		t.Fatal(err)
 	}
 }

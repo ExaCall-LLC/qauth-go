@@ -403,16 +403,18 @@ type CreatedSubOrg struct {
 
 // Branding is an organization's white-label sign-in look.
 type Branding struct {
-	AppID       string    `json:"appId,omitempty"`
-	OrgID       string    `json:"orgId,omitempty"`
-	DisplayName string    `json:"displayName,omitempty"`
-	Accent      string    `json:"accent"`
-	Background  string    `json:"background"`
-	Mode        string    `json:"mode"`     // auto | light | dark
-	Language    string    `json:"language"` // auto | en | ar
-	HasLogo     bool      `json:"hasLogo"`
-	LogoURL     string    `json:"logoUrl,omitempty"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	AppID       string `json:"appId,omitempty"`
+	OrgID       string `json:"orgId,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Accent      string `json:"accent"`
+	Background  string `json:"background"`
+	Mode        string `json:"mode"`     // auto | light | dark
+	Language    string `json:"language"` // auto | en | ar
+	HasLogo     bool   `json:"hasLogo"`
+	LogoURL     string `json:"logoUrl,omitempty"`
+	// Design is the rest of the look (layout, form side, side panel).
+	Design    Design    `json:"design"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // BrandingSpec sets an organization's sign-in look. Logo is base64 (PNG,
@@ -425,6 +427,121 @@ type BrandingSpec struct {
 	Background  string `json:"background,omitempty"`
 	Mode        string `json:"mode,omitempty"`
 	Language    string `json:"language,omitempty"`
+	// Design is the rest of the look; nil keeps the saved one.
+	Design *Design `json:"design,omitempty"`
+}
+
+// Design is a sign-in look's layout, form-side settings and side panel.
+// Empty values mean "the level above decides" (qAuth's own look at the
+// bottom). Texts are plain text; links https only; the limits and fonts are
+// the platform's (DesignView.Limits).
+type Design struct {
+	Layout          string       `json:"layout,omitempty"`          // simple | split
+	FormSide        string       `json:"formSide,omitempty"`        // start | end (mirrors in Arabic)
+	PanelBackground string       `json:"panelBackground,omitempty"` // the form side's colour, #rrggbb
+	Text            string       `json:"text,omitempty"`            // #rrggbb
+	Corners         string       `json:"corners,omitempty"`         // sharp | soft | round
+	Button          string       `json:"button,omitempty"`          // filled | outline
+	Font            string       `json:"font,omitempty"`            // one of DesignLimits.Fonts
+	SecuredBy       *bool        `json:"securedBy,omitempty"`       // "Secured by qAuth"
+	Texts           *DesignTexts `json:"texts,omitempty"`
+	Panel           *DesignPanel `json:"panel,omitempty"`
+	Phone           string       `json:"phone,omitempty"` // hidden | banner
+}
+
+// DesignTexts is the sign-in step's own title and subtitle per language
+// (empty = qAuth's words).
+type DesignTexts struct {
+	EN TitleText `json:"en"`
+	AR TitleText `json:"ar"`
+}
+
+// TitleText is a title and a subtitle.
+type TitleText struct {
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+}
+
+// DesignPanel is the split layout's side panel.
+type DesignPanel struct {
+	Background PanelBackground `json:"background"`
+	Blocks     []DesignBlock   `json:"blocks"`
+}
+
+// PanelBackground is a colour, a gradient or a picture (a DesignFile's hash)
+// under an overlay colour.
+type PanelBackground struct {
+	Kind           string `json:"kind"` // color | gradient | image
+	Color          string `json:"color,omitempty"`
+	From           string `json:"from,omitempty"`
+	To             string `json:"to,omitempty"`
+	Angle          int    `json:"angle,omitempty"`
+	Image          string `json:"image,omitempty"`
+	Overlay        string `json:"overlay,omitempty"`
+	OverlayOpacity int    `json:"overlayOpacity,omitempty"`
+}
+
+// DesignBlock is one block of the side panel: heading (Text, Size, Align,
+// Color), text (Text, Align, Color), image (Image, Alt, Width, Align), list
+// (Items, Color), link (Label, URL, Style link|filled|outline, Align) or
+// spacer (Size). ID is the block's own (letters, digits, - or _).
+type DesignBlock struct {
+	ID    string     `json:"id"`
+	Type  string     `json:"type"`
+	Text  *I18nText  `json:"text,omitempty"`
+	Size  string     `json:"size,omitempty"`
+	Align string     `json:"align,omitempty"`
+	Color string     `json:"color,omitempty"`
+	Image string     `json:"image,omitempty"`
+	Alt   *I18nText  `json:"alt,omitempty"`
+	Width int        `json:"width,omitempty"`
+	Items *I18nItems `json:"items,omitempty"`
+	Label *I18nText  `json:"label,omitempty"`
+	URL   string     `json:"url,omitempty"`
+	Style string     `json:"style,omitempty"`
+}
+
+// I18nText is a text in English and Arabic.
+type I18nText struct {
+	EN string `json:"en"`
+	AR string `json:"ar"`
+}
+
+// I18nItems is a list in English and Arabic.
+type I18nItems struct {
+	EN []string `json:"en"`
+	AR []string `json:"ar"`
+}
+
+// DesignView is an organization's look as qAuth answers it: its own (Own
+// says whether it keeps one), what it inherits and from where, and the
+// platform's limits.
+type DesignView struct {
+	Level         string            `json:"level"`
+	Own           bool              `json:"own"`
+	Look          Branding          `json:"look"`
+	Inherited     Branding          `json:"inherited"`
+	InheritedFrom map[string]string `json:"inheritedFrom"`
+	Limits        DesignLimits      `json:"limits"`
+	Name          string            `json:"name,omitempty"`
+}
+
+// DesignLimits are the platform's limits for designs.
+type DesignLimits struct {
+	Fonts        []string `json:"fonts"`
+	LogoMaxKB    int      `json:"logoMaxKb"`
+	ImageMaxKB   int      `json:"imageMaxKb"`
+	MaxBlocks    int      `json:"maxBlocks"`
+	ShortTextMax int      `json:"shortTextMax"`
+	LongTextMax  int      `json:"longTextMax"`
+	ListItemsMax int      `json:"listItemsMax"`
+}
+
+// DesignFile is a picture kept for designs, named by its hash.
+type DesignFile struct {
+	Hash        string `json:"hash"`
+	ContentType string `json:"contentType"`
+	Size        int    `json:"size"`
 }
 
 // MySecurity is the person's account page.
