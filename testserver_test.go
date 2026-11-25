@@ -20,6 +20,7 @@ import (
 type seedInfo struct {
 	BaseURL    string `json:"baseUrl"`
 	OrgKey     string `json:"orgKey"`
+	SetupKey   string `json:"setupKey"`
 	Tenant     string `json:"tenant"`
 	Shop       string `json:"shop"`
 	Cafe       string `json:"cafe"`

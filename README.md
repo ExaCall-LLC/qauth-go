@@ -268,6 +268,33 @@ err = org.Design.Reset(ctx, "")                  // inherit again
 Lists answer `*Page[T]{Items, Pagination}`. Admins manage the organization; managers manage people
 (never the admin role); members read.
 
+## App definition files (the `qauth` command)
+
+An app's authorization model can live in its own repository as `qauth.app.yaml`
+([the guide](https://auth.qapps.dev/docs/app-definition)). CI plans and applies it with a setup key:
+
+```sh
+go install github.com/ExaCall-LLC/qauth-go/cmd/qauth@v0.7.0   # pin the version in CI
+export QAUTH_SETUP_KEY=qsk_...            # Console: the API › Setup keys
+qauth plan qauth.app.yaml                 # what would change (nothing is changed)
+qauth apply qauth.app.yaml --apply        # make the changes (add --prune to remove what the file dropped)
+```
+
+`QAUTH_API_URL` defaults to `https://auth.qapps.dev`. Flags: `--apply`, `--prune`, `--plan-hash`, `--json`, `--source`,
+`--path`, `--commit`, `--ref` (read from GitHub Actions, Woodpecker CI or git when not given). Exit codes:
+0 done (dry run, applied, nothing to do), 1 refused or failed (the plan says why), 2 a usage mistake
+(no key, no file), 3 qAuth refused the key or could not be reached. It prints the same plan as
+`npx @isdlc.ai/qauth-cli`: qAuth makes the plan, the tools only show it.
+
+From Go code, the same calls:
+
+<!-- no-compile: a fragment with placeholders -->
+```go
+sc, err := qauth.NewSetupClient(qauth.DefaultSetupURL, os.Getenv("QAUTH_SETUP_KEY"), nil)
+res, err := sc.Plan(ctx, qauth.SetupRequest{Content: string(file), Source: "github.com/acme/shop", Commit: sha})
+fmt.Print(res.Text) // res.Result: dry-run | applied | no-changes | refused | failed
+```
+
 ## Errors
 
 Every refusal is a `*qauth.Error`:
@@ -329,6 +356,10 @@ keys generated in the test.
 
 ## Changes
 
+- **0.7.0** (2026-11-25): app definition files. `SetupClient` (`NewSetupClient`, `Plan`, `Apply`,
+  `SetupRequest`, `SetupResult`, `SetupPlan`, `SetupChange`, `SetupProblem`) and the `qauth` command
+  (`cmd/qauth`: `qauth plan|apply [file] [--apply] [--prune] [--plan-hash H] [--json]`; names in the output
+  escaped). Additions only.
 - **0.6.0** (2026-11-25): a parent organization never manages a child's people (its people and keys see them
   read-only; adding, removing, resetting and giving roles in a child answer 403). `NewSubOrg.Invite` and
   `CreatedSubOrg.Invited`: a child's first admin may be anyone, you too (an existing account is added as it is; a new
