@@ -30,6 +30,8 @@ type seedInfo struct {
 	AgentRole  string `json:"agentRole"`
 	// CustomerLevel: Cafe is a Customer of API (levels per product)
 	CustomerLevel string `json:"customerLevel"`
+	// TVNumber: the number the waiting TV shows (number matching)
+	TVNumber int `json:"tvNumber"`
 }
 
 var testServer struct {
@@ -111,4 +113,54 @@ func TestMain(m *testing.M) {
 		_ = os.RemoveAll(testServer.dir)
 	}
 	os.Exit(code)
+}
+
+// My account › Devices and the org admins' view, against the real routes.
+func TestDevicesAgainstTheServer(t *testing.T) {
+	seed := liveSeed(t)
+	ctx := t.Context()
+	c, err := New(seed.BaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	me := c.As("cafe-admin-token")
+	admin := me
+	list, err := me.Account.Devices.List(ctx, seed.App, "laptop-1")
+	if err != nil || len(list.Devices) != 1 || !list.Devices[0].Current || list.Counts[0].Limit != 3 {
+		t.Fatalf("list: %+v %v", list, err)
+	}
+	w, err := me.Account.Devices.Lookup(ctx, "BKRT-JMXL")
+	if err != nil || w.DeviceName != "Living room TV" || w.TypeMax != 2 || len(w.Choices) != 3 || !w.OtherNetwork {
+		t.Fatalf("lookup: %+v %v", w, err)
+	}
+	if err := me.Account.Devices.Approve(ctx, "BKRT-JMXL", ApproveOptions{Number: seed.TVNumber, ClientID: "omni-web"}); err == nil {
+		t.Fatal("another network approved without confirming")
+	}
+	if err := me.Account.Devices.Approve(ctx, "BKRT-JMXL", ApproveOptions{Number: seed.TVNumber, ConfirmPlace: true, ClientID: "omni-web"}); err != nil {
+		t.Fatal(err)
+	}
+	pc, err := me.Account.Devices.PairingCode(ctx, seed.App, "omni-web")
+	if err != nil || len(pc.Code) != 8 {
+		t.Fatalf("pairing code: %+v %v", pc, err)
+	}
+	theirs, err := admin.Org(seed.Cafe).Members.Devices(ctx, "cafe-admin")
+	if err != nil || len(theirs.Items) != 2 {
+		t.Fatalf("org admin: %+v %v", theirs, err)
+	}
+	if _, err := c.As("shop-admin-token").Org(seed.Shop).Members.Devices(ctx, "cafe-admin"); err == nil {
+		t.Fatal("another organization's admin lists the person's devices")
+	}
+	if n, err := admin.Org(seed.Cafe).Members.EndDevice(ctx, "cafe-admin", ""); err != nil || n != 2 {
+		t.Fatalf("end all: %d %v", n, err)
+	}
+	two := 2
+	v, err := admin.Org(seed.Cafe).SetSessionSettings(ctx, seed.App, OrgSessionSettings{MaxSessions: &two})
+	if err != nil || v.Effective.MaxSessions != 2 {
+		t.Fatalf("stricter: %+v %v", v, err)
+	}
+	nine := 9
+	if _, err := admin.Org(seed.Cafe).SetSessionSettings(ctx, seed.App, OrgSessionSettings{MaxSessions: &nine}); err == nil {
+		t.Fatal("looser accepted")
+	}
+	_, _ = admin.Org(seed.Cafe).SetSessionSettings(ctx, seed.App, OrgSessionSettings{})
 }

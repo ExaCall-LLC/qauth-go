@@ -344,6 +344,22 @@ func TestLiveAudit(t *testing.T) {
 	}
 	_, err := c.As("shop-member-token").Org(s.Shop).Audit(ctx, AuditQuery{})
 	wantStatus(t, err, 403)
+	// the filters, and each event's who/what/where
+	ok := must(org.Audit(ctx, AuditQuery{Type: "orgs.members.", Result: "success", Limit: 5}))(t)
+	i := slices.IndexFunc(ok.Items, func(e AuditEntry) bool { return e.Type == "orgs.members.created" })
+	if i < 0 || ok.Items[i].ActorType != "person" || ok.Items[i].RequestID == "" || ok.Items[i].Result != "success" {
+		t.Fatalf("filtered: %+v", ok.Items)
+	}
+	// my own activity: my events only
+	mine := must(c.As("shop-admin-token").Account.Activity(ctx, AuditQuery{Limit: 20}))(t)
+	if len(mine.Items) == 0 {
+		t.Fatal("no activity")
+	}
+	for _, e := range mine.Items {
+		if e.Actor != "shop-admin" && e.Target != "shop-admin" || e.Changes != nil {
+			t.Fatalf("not mine: %+v", e)
+		}
+	}
 }
 
 func TestLiveInvitations(t *testing.T) {

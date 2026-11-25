@@ -356,6 +356,19 @@ keys generated in the test.
 
 ## Changes
 
+- **0.10.1** (2026-11-25): `Devices.SignOutAll` needs your device in `keep` (else 400; or `SignOutAllIncludingCurrent`);
+  `Devices.List` marks `Current` only for the session passed.
+- **0.10.0** (2026-11-25): the audit log. `AuditEntry` gains its own id (`UID`), who (`ActorType`, `ActorDisplay`, `ActingOrgID`), what
+  (`TargetType`, `TargetName`, `Changes` before/after as `FieldChange`), the result (`Result`, `Reason`), where (`IP`,
+  `UserAgent`, `RequestID`) and its place in the chain (`Seq`, `Hash`); `AuditQuery` takes the audit log's filters
+  (`Group`, `Actor`, `Target`, `Result`, `App`, `IP`, `Request`, `From`, `To`); `Account.Activity` reads the person's
+  own recent activity. Additions only.
+- **0.9.0** (2026-11-25): `Devices.SignOutAll` keeps the calling device; `SignOutAllIncludingCurrent`;
+  `SessionSettings.IdleByType` and `OrgSessionSettings.IdleByType` (idle per device type; TVs never idle by default).
+- **0.8.0** (2026-11-25): sessions and devices. `Account.Devices`: `List`, `Update` (rename, mark shared),
+  `SignOut`, `SignOutAll`, `PairingCode` (needs a recent sign-in), `Lookup` (Choices for number matching,
+  OtherNetwork), `Approve(ctx, code, ApproveOptions{Number, ConfirmPlace, SignOut, ClientID})` / `Deny` (a TV's code); `Members.Devices` and
+  `Members.EndDevice` (admins); `OrgClient.SessionSettings` / `SetSessionSettings` (stricter only).
 - **0.7.0** (2026-11-25): app definition files. `SetupClient` (`NewSetupClient`, `Plan`, `Apply`,
   `SetupRequest`, `SetupResult`, `SetupPlan`, `SetupChange`, `SetupProblem`) and the `qauth` command
   (`cmd/qauth`: `qauth plan|apply [file] [--apply] [--prune] [--plan-hash H] [--json]`; names in the output

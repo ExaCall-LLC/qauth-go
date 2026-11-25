@@ -1,6 +1,10 @@
 package qauth
 
-import "time"
+import (
+	"net/url"
+	"strconv"
+	"time"
+)
 
 // Pagination describes one page of a list answer.
 type Pagination struct {
@@ -409,14 +413,42 @@ type Assignment struct {
 	RoleIDs []string `json:"roleIds"`
 }
 
-// AuditEntry is one event of an organization's audit log.
+// AuditEntry is one event of the audit log: who (Actor, ActorType,
+// ActorDisplay; ActingOrgID when a parent organization acted on a child),
+// what (Type, TargetType, Target, TargetName, Changes before/after with
+// secrets redacted), the result (Result: success, refused or failed;
+// Reason), when (At) and where (IP, UserAgent, RequestID), and its place
+// in the log's hash chain (Seq, Hash).
 type AuditEntry struct {
-	ID        int64     `json:"id"`
-	Type      string    `json:"type"`
-	Actor     string    `json:"actor,omitempty"`
-	ActorName string    `json:"actorName,omitempty"`
-	Target    string    `json:"target,omitempty"`
-	At        time.Time `json:"at"`
+	ID           int64                  `json:"id"`
+	Type         string                 `json:"type"`
+	Actor        string                 `json:"actor,omitempty"`
+	ActorName    string                 `json:"actorName,omitempty"`
+	ActorType    string                 `json:"actorType,omitempty"`
+	ActorDisplay string                 `json:"actorDisplay,omitempty"`
+	ActingOrgID  string                 `json:"actingOrgId,omitempty"`
+	TargetType   string                 `json:"targetType,omitempty"`
+	Target       string                 `json:"target,omitempty"`
+	TargetName   string                 `json:"targetName,omitempty"`
+	Result       string                 `json:"result,omitempty"`
+	Reason       string                 `json:"reason,omitempty"`
+	Changes      map[string]FieldChange `json:"changes,omitempty"`
+	OrgID        string                 `json:"orgId,omitempty"`
+	AppID        string                 `json:"appId,omitempty"`
+	IP           string                 `json:"ip,omitempty"`
+	UserAgent    string                 `json:"userAgent,omitempty"`
+	RequestID    string                 `json:"requestId,omitempty"`
+	At           time.Time              `json:"at"`
+	Seq          int64                  `json:"seq,omitempty"`
+	Hash         string                 `json:"hash,omitempty"`
+	// UID: the event's own id (unique; not part of the hash).
+	UID string `json:"uid,omitempty"`
+}
+
+// FieldChange is one field's value before and after a change.
+type FieldChange struct {
+	Before any `json:"before"`
+	After  any `json:"after"`
 }
 
 // AuditQuery filters the audit log. Zero values are left out.
@@ -426,6 +458,40 @@ type AuditQuery struct {
 	Before int64
 	// Type: only events whose type starts with this.
 	Type string
+	// Group: type prefixes, comma-separated.
+	Group string
+	// Actor / Target: an id, or part of a name or email.
+	Actor, Target string
+	// Result: success, refused or failed.
+	Result string
+	App    string
+	IP     string
+	// Request: a request id (X-Request-ID).
+	Request string
+	// From / To: a time range (To is exclusive).
+	From, To time.Time
+}
+
+func (q AuditQuery) values() url.Values {
+	v := url.Values{}
+	if q.Limit > 0 {
+		v.Set("limit", strconv.Itoa(q.Limit))
+	}
+	if q.Before > 0 {
+		v.Set("before", strconv.FormatInt(q.Before, 10))
+	}
+	for k, s := range map[string]string{"type": q.Type, "group": q.Group, "actor": q.Actor, "target": q.Target, "result": q.Result, "app": q.App, "ip": q.IP, "request": q.Request} {
+		if s != "" {
+			v.Set(k, s)
+		}
+	}
+	if !q.From.IsZero() {
+		v.Set("from", q.From.UTC().Format(time.RFC3339))
+	}
+	if !q.To.IsZero() {
+		v.Set("to", q.To.UTC().Format(time.RFC3339))
+	}
+	return v
 }
 
 // NewSubOrg creates a child organization.

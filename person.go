@@ -25,7 +25,7 @@ type Person struct {
 
 func newPerson(c *Client, token string) *Person {
 	t := c.bearer(token)
-	acc := &Account{t: t, Sessions: &Sessions{t: t}, Authenticator: &Authenticator{t: t}, Phone: &Phone{t: t}}
+	acc := &Account{t: t, Sessions: &Sessions{t: t}, Devices: &Devices{t: t}, Authenticator: &Authenticator{t: t}, Phone: &Phone{t: t}}
 	return &Person{c: c, t: t, token: token, Tokens: &PersonalTokens{t: t}, Verifications: &Verifications{t: t}, Account: acc}
 }
 
@@ -135,6 +135,9 @@ type Account struct {
 	t *transport
 	// Sessions are the person's sign-in sessions.
 	Sessions *Sessions
+	// Devices are where the person is signed in (My account › Devices),
+	// pairing codes and TV approvals.
+	Devices *Devices
 	// Authenticator is the person's authenticator app.
 	Authenticator *Authenticator
 	// Phone is the person's verified phone.
@@ -286,4 +289,13 @@ func IsFreshStepUp(record *StepUp, startedAt time.Time, within time.Duration) bo
 		within = 10 * time.Minute
 	}
 	return !record.At.Before(startedAt.Add(-time.Second)) && time.Since(record.At) <= within
+}
+
+// Activity is the person's recent activity, newest first (My account ›
+// Security): their sign-ins and sign-outs (device, address), refused
+// sign-ins, password, second-step, passkey and token changes, and what an
+// admin did to their account. Actor and Target in q are ignored.
+func (a *Account) Activity(ctx context.Context, q AuditQuery) (*Page[AuditEntry], error) {
+	q.Actor, q.Target = "", ""
+	return list[AuditEntry](ctx, a.t, "/v1/me/activity", q.values())
 }

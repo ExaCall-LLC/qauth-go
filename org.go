@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
-	"strconv"
 )
 
 // OrgClient is one organization, as the caller (a person or an API key)
@@ -90,17 +89,7 @@ func (o *OrgClient) Apps(ctx context.Context) (*Page[App], error) {
 
 // Audit reads the organization's audit log, newest first (admins).
 func (o *OrgClient) Audit(ctx context.Context, q AuditQuery) (*Page[AuditEntry], error) {
-	v := url.Values{}
-	if q.Limit > 0 {
-		v.Set("limit", strconv.Itoa(q.Limit))
-	}
-	if q.Before > 0 {
-		v.Set("before", strconv.FormatInt(q.Before, 10))
-	}
-	if q.Type != "" {
-		v.Set("type", q.Type)
-	}
-	return list[AuditEntry](ctx, o.t, o.p("/audit"), v)
+	return list[AuditEntry](ctx, o.t, o.p("/audit"), q.values())
 }
 
 // Members are an organization's people.
