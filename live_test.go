@@ -523,23 +523,25 @@ func TestLiveMyAccount(t *testing.T) {
 	if err := me.ChangePassword(ctx, "Pass-shop-admin-1!", "Brand-new-pass-1!"); err != nil {
 		t.Fatal(err)
 	}
-	uri, _, err := me.Authenticator.Start(ctx)
+	pw := "Brand-new-pass-1!"
+	_, _, err := me.Authenticator.Start(ctx, nil)
+	wantStatus(t, err, 403) // confirm it's you first
+	uri, _, err := me.Authenticator.Start(ctx, &Proof{Password: pw})
+	_ = uri
 	if err != nil || !strings.HasPrefix(uri, "otpauth:") {
 		t.Fatal(uri, err)
 	}
 	if err := me.Authenticator.Verify(ctx, "123456"); err != nil {
 		t.Fatal(err)
 	}
-	wantStatus(t, me.Authenticator.Remove(ctx, Proof{Password: "nope"}), 422)
-	if codes := must(me.RecoveryCodes(ctx, nil))(t); len(codes) != 10 {
-		t.Fatal(codes)
-	}
+	wantStatus(t, me.Authenticator.Remove(ctx, Proof{Code: "123456"}), 403) // the password too, now
+	wantStatus(t, me.Authenticator.Remove(ctx, Proof{Password: "nope", Code: "123456"}), 422)
 	_, err = me.RecoveryCodes(ctx, nil)
-	wantStatus(t, err, 422) // proof needed now
-	if codes := must(me.RecoveryCodes(ctx, &Proof{Code: "123456"}))(t); len(codes) != 10 {
+	wantStatus(t, err, 403) // always confirmed, the first codes too
+	if codes := must(me.RecoveryCodes(ctx, &Proof{Password: pw, Code: "123456"}))(t); len(codes) != 10 {
 		t.Fatal(codes)
 	}
-	if err := me.Authenticator.Remove(ctx, Proof{Code: "123456"}); err != nil {
+	if err := me.Authenticator.Remove(ctx, Proof{Password: pw, Code: "123456"}); err != nil {
 		t.Fatal(err)
 	}
 	ss := must(me.Sessions.List(ctx))(t)

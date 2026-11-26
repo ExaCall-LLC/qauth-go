@@ -191,13 +191,20 @@ func (a *Account) LastStepUp(ctx context.Context, clientID string) (*StepUp, err
 // Authenticator is the person's authenticator app.
 type Authenticator struct{ t *transport }
 
-// Start answers the otpauth:// address (show it as a QR code) and its secret.
-func (x *Authenticator) Start(ctx context.Context) (uri, secret string, err error) {
+// Start answers the otpauth:// address (show it as a QR code) and its
+// secret. The person confirms it's them (proof: their password, plus a
+// code when they already have a second step); nil asks qAuth what it
+// needs (a 403 CONFIRM_NEEDED says).
+func (x *Authenticator) Start(ctx context.Context, proof *Proof) (uri, secret string, err error) {
 	var out struct {
 		URI    string `json:"uri"`
 		Secret string `json:"secret"`
 	}
-	err = x.t.call(ctx, http.MethodPost, "/v1/me/authenticator", nil, nil, &out)
+	var body any = map[string]any{}
+	if proof != nil {
+		body = proof
+	}
+	err = x.t.call(ctx, http.MethodPost, "/v1/me/authenticator", nil, body, &out)
 	return out.URI, out.Secret, err
 }
 
@@ -215,12 +222,17 @@ func (x *Authenticator) Remove(ctx context.Context, proof Proof) error {
 type Phone struct{ t *transport }
 
 // Add sends a code to the number and answers where it went (masked); the
-// number is saved once Verify gets the right code.
-func (x *Phone) Add(ctx context.Context, phone string) (codeSentTo string, err error) {
+// number is saved once Verify gets the right code. The person confirms
+// it's them (proof, as for Authenticator.Start).
+func (x *Phone) Add(ctx context.Context, phone string, proof *Proof) (codeSentTo string, err error) {
 	var out struct {
 		CodeSentTo string `json:"codeSentTo"`
 	}
-	err = x.t.call(ctx, http.MethodPost, "/v1/me/phone", nil, map[string]string{"phone": phone}, &out)
+	body := map[string]string{"phone": phone}
+	if proof != nil {
+		body["password"], body["code"], body["phoneCode"] = proof.Password, proof.Code, proof.PhoneCode
+	}
+	err = x.t.call(ctx, http.MethodPost, "/v1/me/phone", nil, body, &out)
 	return out.CodeSentTo, err
 }
 

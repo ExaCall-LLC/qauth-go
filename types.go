@@ -712,8 +712,13 @@ type MySecurity struct {
 // Proof is a fresh proof that it is the person: their password, or an
 // authenticator code. Set one.
 type Proof struct {
+	// Password, plus Code (from the authenticator app) when the person
+	// has one: both are needed then.
 	Password string `json:"password,omitempty"`
 	Code     string `json:"code,omitempty"`
+	// PhoneCode: the code sent by SMS (a person whose second step is
+	// their phone; POST /v1/me/confirm/phone sends it).
+	PhoneCode string `json:"phoneCode,omitempty"`
 }
 
 // SessionInfo is one of the person's sign-in sessions.

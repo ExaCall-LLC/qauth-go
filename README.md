@@ -161,14 +161,17 @@ err = me.Tokens.Revoke(ctx, tk.Key.ID)
 // my account
 sec, err := me.Account.Security(ctx)
 err = me.Account.ChangePassword(ctx, current, next)
-uri, secret, err := me.Account.Authenticator.Start(ctx)   // show uri as a QR code
+// a change to second steps needs the person to confirm it's them: their
+// password, plus a code when they have an authenticator app (403
+// CONFIRM_NEEDED says what is missing; never a set-up first)
+uri, secret, err := me.Account.Authenticator.Start(ctx, &qauth.Proof{Password: pw})   // show uri as a QR code
 err = me.Account.Authenticator.Verify(ctx, "123456")
-err = me.Account.Authenticator.Remove(ctx, qauth.Proof{Code: "123456"})
-sentTo, err := me.Account.Phone.Add(ctx, "+966512345678")
+err = me.Account.Authenticator.Remove(ctx, qauth.Proof{Password: pw, Code: "123456"})
+sentTo, err := me.Account.Phone.Add(ctx, "+966512345678", &qauth.Proof{Password: pw})
 err = me.Account.Phone.Verify(ctx, code)
 err = me.Account.Phone.Remove(ctx, qauth.Proof{Password: pw})
-codes, err := me.Account.RecoveryCodes(ctx, nil)            // a proof once codes exist
-err = me.Account.RemovePasskey(ctx, passkeyID, qauth.Proof{Code: "123456"})
+codes, err := me.Account.RecoveryCodes(ctx, &qauth.Proof{Password: pw, Code: "123456"}) // always confirmed
+err = me.Account.RemovePasskey(ctx, passkeyID, qauth.Proof{Password: pw, Code: "123456"})
 
 // sessions
 ss, err := me.Account.Sessions.List(ctx)
@@ -360,6 +363,10 @@ keys generated in the test.
 
 ## Changes
 
+- **0.15.0** (2026-11-26): "confirm it's you", one rule for every change to second steps: `Authenticator.Start(ctx,
+  proof)` and `Phone.Add(ctx, phone, proof)` take a proof now; a person with an authenticator app confirms with
+  their password AND a code (`Proof{Password, Code}`), others with their password. A missing part is a 403
+  `CONFIRM_NEEDED`. Needs a qAuth server with it.
 - **0.14.1** (2026-11-26): docs only: an organization key may have only qAuth scopes (`qauth:org:*`) and no API permission; such a key is for qAuth's organization routes and can't use your API.
 - **0.14.0** (2026-11-26): instant sign-out. `Account.Sessions.Watch(ctx, sid, WatchOptions{ClientID})` keeps qAuth's
   session stream open and cancels a context the moment the session ends (any reason, any qAuth instance), with
