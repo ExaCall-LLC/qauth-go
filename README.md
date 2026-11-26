@@ -363,6 +363,7 @@ keys generated in the test.
 
 ## Changes
 
+- **0.15.2** (2026-11-26): `SetupResult` names what an applied run made or uses: `APIID`, `Apps` (`FileID`, `ID`, `Name`, `ClientIDs`), `Issuer` and `IssuerReady`; `qauth apply --json` prints them.
 - **0.15.1** (2026-11-26): each API has its own list of levels: `LevelRef` and `Levels` name that API's levels; `Org.LevelID` is always empty (deprecated) and `NewSubOrg.LevelID` is refused when set (give `Levels`); `LevelName` is the organization's level name when it is the same in every API. `MyOrg.InternalByLevel` says one of its levels is internal (`isInternal` stays its own flag).
 - **0.15.0** (2026-11-26): "confirm it's you", one rule for every change to second steps: `Authenticator.Start(ctx,
   proof)` and `Phone.Add(ctx, phone, proof)` take a proof now; a person with an authenticator app confirms with

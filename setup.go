@@ -110,8 +110,24 @@ type SetupResult struct {
 	Markdown string         `json:"markdown,omitempty"`
 	Problems []SetupProblem `json:"problems,omitempty"`
 	Message  string         `json:"message,omitempty"`
+	// After an applied (or no-changes) run: what it made or uses, so a
+	// deployer gets {issuer, clientId, apiId} from one call. Issuer is set
+	// but not ready yet when IssuerReady is false.
+	APIID       string     `json:"apiId,omitempty"`
+	Apps        []SetupApp `json:"apps,omitempty"`
+	Issuer      string     `json:"issuer,omitempty"`
+	IssuerReady bool       `json:"issuerReady,omitempty"`
 	// Status is the HTTP status of the answer.
 	Status int `json:"-"`
+}
+
+// SetupApp is one frontend of the file after a run: its id in the file,
+// its qAuth id and name, and its sign-in clients' client ids.
+type SetupApp struct {
+	FileID    string   `json:"fileId"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	ClientIDs []string `json:"clientIds"`
 }
 
 // OK reports whether the run went through (a dry run, applied, or nothing to do).
