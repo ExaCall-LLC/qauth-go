@@ -265,6 +265,16 @@ type transport struct {
 	header http.Header
 }
 
+// withHeader is the transport with one more header (for one request).
+func (t *transport) withHeader(k, v string) *transport {
+	h := t.header.Clone()
+	if h == nil {
+		h = http.Header{}
+	}
+	h.Set(k, v)
+	return &transport{c: t.c, header: h}
+}
+
 type envelope struct {
 	Success    *bool           `json:"success"`
 	Message    string          `json:"message"`

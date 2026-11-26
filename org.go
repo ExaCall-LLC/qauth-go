@@ -286,9 +286,62 @@ func (x *SubOrgs) List(ctx context.Context) (*Page[Org], error) {
 // access unless isolated). Its first admin may be anyone, you too: an
 // existing account is added as it is; a new one is emailed (Invited) and no
 // password comes back.
-func (x *SubOrgs) Create(ctx context.Context, s NewSubOrg) (*CreatedSubOrg, error) {
+//
+// With IdempotencyKey, a retry is safe: the same key and the same request
+// within qAuth's window (24 hours by default) answer the same child, never
+// a second one; another request with that key is refused (409).
+func (x *SubOrgs) Create(ctx context.Context, s NewSubOrg, opts ...CreateOption) (*CreatedSubOrg, error) {
+	var o createOptions
+	for _, f := range opts {
+		f(&o)
+	}
+	t := x.o.t
+	if o.idempotencyKey != "" {
+		t = t.withHeader("Idempotency-Key", o.idempotencyKey)
+	}
 	var out CreatedSubOrg
-	return ret(&out, x.o.t.call(ctx, http.MethodPost, x.o.p("/suborgs"), nil, s, &out))
+	return ret(&out, t.call(ctx, http.MethodPost, x.o.p("/suborgs"), nil, s, &out))
+}
+
+// CreateOption changes how SubOrgs.Create sends its request.
+type CreateOption func(*createOptions)
+
+type createOptions struct{ idempotencyKey string }
+
+// IdempotencyKey sends an Idempotency-Key (1 to 255 printable characters,
+// one you make per creation): a retry with the same key and request
+// answers the same child.
+func IdempotencyKey(key string) CreateOption {
+	return func(o *createOptions) { o.idempotencyKey = key }
+}
+
+// Rename renames the organization: a direct child from its parent (with
+// org.suborgs.manage, or the parent's key with qauth:org:suborgs), or the
+// organization by its own admins. Unique among its siblings.
+func (o *OrgClient) Rename(ctx context.Context, name string) (*Org, error) {
+	var out Org
+	return ret(&out, o.t.call(ctx, http.MethodPut, o.p(""), nil, map[string]string{"name": name}, &out))
+}
+
+// SetExternalID sets your own id for a direct child ("" clears it): its
+// parent (org.suborgs.manage in a role of the parent, or the parent's key
+// with qauth:org:suborgs) or your tenant; never the organization's own
+// people. Unique in your tenant.
+func (o *OrgClient) SetExternalID(ctx context.Context, externalID string) (*Org, error) {
+	var out Org
+	return ret(&out, o.t.call(ctx, http.MethodPut, o.p("/external-id"), nil, map[string]string{"externalId": externalID}, &out))
+}
+
+// SetLevels sets a direct child's levels in one API, from its parent: the
+// same rule as creating it (each level directly below one of the parent's).
+// Refused when a child of the child, or someone holding a role of a level
+// taken away, would be left without it, and for the child's last level.
+func (o *OrgClient) SetLevels(ctx context.Context, apiID string, levelIDs []string) (*OrgLevels, error) {
+	if levelIDs == nil {
+		levelIDs = []string{}
+	}
+	var out OrgLevels
+	return ret(&out, o.t.call(ctx, http.MethodPut, o.p("/levels/"+seg(apiID)), nil, map[string][]string{"levelIds": levelIDs}, &out))
 }
 
 // Levels reads the organization's levels in each API.

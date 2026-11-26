@@ -472,6 +472,41 @@ func TestLiveSubOrgsBrandingResetPassword(t *testing.T) {
 	}
 }
 
+// A key for child organizations only: create (with externalId and an
+// Idempotency-Key), rename, external id, levels; nothing about people.
+func TestLiveSubOrgsKey(t *testing.T) {
+	c, s := live(t)
+	ctx := context.Background()
+	kids := c.WithKey(s.SubOrgsKey).Org(s.Shop).SubOrgs
+	spec := NewSubOrg{Name: "Branch Idem Go", AdminEmail: "boss@branch-idem-go.test", ExternalID: "go-idem-1"}
+	first := must(kids.Create(ctx, spec, IdempotencyKey("go-create-1")))(t)
+	if first.Org.ExternalID != "go-idem-1" || first.Org.CreatedAt.IsZero() {
+		t.Fatalf("created: %+v", first.Org)
+	}
+	again := must(kids.Create(ctx, spec, IdempotencyKey("go-create-1")))(t)
+	if again.Org.ID != first.Org.ID {
+		t.Fatalf("a retry with the key answers the same child: %+v", again.Org)
+	}
+	spec.Name = "Another"
+	_, err := kids.Create(ctx, spec, IdempotencyKey("go-create-1"))
+	wantStatus(t, err, 409)
+	child := c.WithKey(s.SubOrgsKey).Org(first.Org.ID)
+	if o := must(child.Rename(ctx, "Branch Idem Go Ltd"))(t); o.Name != "Branch Idem Go Ltd" {
+		t.Fatalf("renamed: %+v", o)
+	}
+	if o := must(child.SetExternalID(ctx, ""))(t); o.ExternalID != "" {
+		t.Fatalf("external id cleared: %+v", o)
+	}
+	// Shop has no levels: its child can't get one from it
+	_, err = child.SetLevels(ctx, s.API, []string{s.CustomerLevel})
+	wantStatus(t, err, 422)
+	if list := must(kids.List(ctx))(t); len(list.Items) == 0 || list.Items[0].CreatedAt.IsZero() {
+		t.Fatalf("the child list: %+v", list)
+	}
+	_, err = c.WithKey(s.SubOrgsKey).Org(s.Shop).Members.List(ctx)
+	wantStatus(t, err, 403)
+}
+
 func TestLiveMyAccount(t *testing.T) {
 	c, _ := live(t)
 	ctx := context.Background()

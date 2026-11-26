@@ -18,8 +18,10 @@ import (
 // QAUTH_SDK_TESTSERVER points at a built binary.
 
 type seedInfo struct {
-	BaseURL    string `json:"baseUrl"`
-	OrgKey     string `json:"orgKey"`
+	BaseURL string `json:"baseUrl"`
+	OrgKey  string `json:"orgKey"`
+	// SubOrgsKey: Shop's key with qauth:org:suborgs only
+	SubOrgsKey string `json:"subOrgsKey"`
 	SetupKey   string `json:"setupKey"`
 	Tenant     string `json:"tenant"`
 	Shop       string `json:"shop"`

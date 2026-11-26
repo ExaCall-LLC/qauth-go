@@ -500,6 +500,9 @@ type NewSubOrg struct {
 	AdminEmail        string `json:"adminEmail"`
 	LevelID           string `json:"levelId,omitempty"`
 	IsolatedDirectory bool   `json:"isolatedDirectory,omitempty"`
+	// ExternalID is your own id for the child (optional): unique in your
+	// tenant, at most 200 characters.
+	ExternalID string `json:"externalId,omitempty"`
 	// Levels per API (API id -> level ids). Left out: in each API, the level
 	// directly below this organization's lowest level that has one below.
 	Levels map[string][]string `json:"levels,omitempty"`

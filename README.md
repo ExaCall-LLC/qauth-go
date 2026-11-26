@@ -356,6 +356,10 @@ keys generated in the test.
 
 ## Changes
 
+- **0.11.0** (2026-11-26): child organizations from the parent. `NewSubOrg.ExternalID`; `SubOrgs.Create` takes
+  `IdempotencyKey(key)` (a retry answers the same child; another request with the key is 409); `OrgClient.Rename`,
+  `SetExternalID` and `SetLevels` (a direct child, from its parent: `org.suborgs.manage` / `org.suborgs.create`, or the
+  parent's key with the new scope `qauth:org:suborgs`).
 - **0.10.1** (2026-11-25): `Devices.SignOutAll` needs your device in `keep` (else 400; or `SignOutAllIncludingCurrent`);
   `Devices.List` marks `Current` only for the session passed.
 - **0.10.0** (2026-11-25): the audit log. `AuditEntry` gains its own id (`UID`), who (`ActorType`, `ActorDisplay`, `ActingOrgID`), what
