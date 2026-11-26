@@ -41,16 +41,22 @@ type MyOrg struct {
 	Role Role   `json:"role"`
 	// ParentOrgID is the parent organization ("" = a top organization).
 	ParentOrgID string `json:"parentOrgId,omitempty"`
-	// LevelName is the organization's tenant level name, if it has one.
+	// LevelName is the organization's level name when it has the same one
+	// in every API it has levels in ("" otherwise). Each API has its own
+	// list of levels: read Levels.
 	LevelName string `json:"levelName,omitempty"`
-	// IsInternal: your tenant's own organization.
+	// IsInternal is the organization's own stored flag only (set by your
+	// tenant's admins). An organization internal only through a level has
+	// InternalByLevel true instead; for "internal for any reason" check both.
 	IsInternal bool `json:"isInternal"`
+	// InternalByLevel: one of its levels in some API is internal (derived).
+	InternalByLevel bool `json:"internalByLevel,omitempty"`
 	// Levels maps an API's id to the organization's levels there, top first
 	// (empty: no levels; everything works as without levels).
 	Levels map[string][]LevelRef `json:"levels,omitempty"`
 }
 
-// LevelRef names one level of your tenant (Operator, Provider, Customer…).
+// LevelRef names one level of an API's own list (Operator, Provider, Customer…).
 type LevelRef struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -117,12 +123,14 @@ type Org struct {
 	// MFARequired: a second sign-in step for this org's people in every app.
 	MFARequired bool `json:"mfaRequired"`
 	// MembersMayJoinOthers: its managed people may also join other organizations.
-	MembersMayJoinOthers bool      `json:"membersMayJoinOthers"`
-	ExternalID           string    `json:"externalId,omitempty"`
-	ParentOrgID          string    `json:"parentOrgId,omitempty"`
-	LevelID              string    `json:"levelId,omitempty"`
-	LevelName            string    `json:"levelName,omitempty"`
-	CreatedAt            time.Time `json:"createdAt"`
+	MembersMayJoinOthers bool   `json:"membersMayJoinOthers"`
+	ExternalID           string `json:"externalId,omitempty"`
+	ParentOrgID          string `json:"parentOrgId,omitempty"`
+	// Deprecated: LevelID is always empty (levels are per API: OrgClient.Levels).
+	LevelID string `json:"levelId,omitempty"`
+	// LevelName: the organization's level name when it is the same in every API it has levels in.
+	LevelName string    `json:"levelName,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // OrgSettings are an organization's settings (admins).
@@ -519,15 +527,18 @@ func (q AuditQuery) values() url.Values {
 
 // NewSubOrg creates a child organization.
 type NewSubOrg struct {
-	Name              string `json:"name"`
-	AdminEmail        string `json:"adminEmail"`
-	LevelID           string `json:"levelId,omitempty"`
-	IsolatedDirectory bool   `json:"isolatedDirectory,omitempty"`
+	Name       string `json:"name"`
+	AdminEmail string `json:"adminEmail"`
+	// Deprecated: LevelID (the old single level) is refused when set: give Levels.
+	LevelID string `json:"levelId,omitempty"`
+	// IsolatedDirectory: its own new account pool, chosen here only.
+	IsolatedDirectory bool `json:"isolatedDirectory,omitempty"`
 	// ExternalID is your own id for the child (optional): unique in your
 	// tenant, at most 200 characters.
 	ExternalID string `json:"externalId,omitempty"`
-	// Levels per API (API id -> level ids). Left out: in each API, the level
-	// directly below this organization's lowest level that has one below.
+	// Levels per API (API id -> ids of that API's own levels). Left out: in
+	// each API, the level directly below this organization's lowest level
+	// that has one below.
 	Levels map[string][]string `json:"levels,omitempty"`
 	// Invite emails the first admin (a new account's one-time password goes
 	// in the email). Always on for a new account when an organization
