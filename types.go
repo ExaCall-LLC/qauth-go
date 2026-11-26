@@ -269,6 +269,10 @@ type AddedDomain struct {
 	Domain OrgDomain `json:"domain"`
 	// Record is the TXT record's DNS name; its value is Domain.Token.
 	Record string `json:"record"`
+	// TXTName and TXTValue name the TXT record to publish (TXTName = Record,
+	// TXTValue = Domain.Token).
+	TXTName  string `json:"txtName,omitempty"`
+	TXTValue string `json:"txtValue,omitempty"`
 }
 
 // SSOConnection is an organization's company sign-in (OpenID Connect).
@@ -280,10 +284,12 @@ type SSOConnection struct {
 	ClientID    string `json:"clientId"`
 	Mode        string `json:"mode"` // optional | required
 	// SecretSet: the client secret is stored and never returned.
-	SecretSet   bool      `json:"secretSet"`
-	CallbackURL string    `json:"callbackUrl"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	SecretSet bool `json:"secretSet"`
+	// PublicClient: a client without a secret (PKCE), e.g. another qAuth tenant's web client.
+	PublicClient bool      `json:"publicClient,omitempty"`
+	CallbackURL  string    `json:"callbackUrl"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // SSOState says whether company sign-in is connected.
@@ -292,6 +298,17 @@ type SSOState struct {
 	// CallbackURL is the redirect address to register at the provider.
 	CallbackURL string         `json:"callbackUrl"`
 	Connection  *SSOConnection `json:"connection,omitempty"`
+	// OtherDirectoryApps: apps the organization can use that sign in from
+	// another directory (company sign-in does not cover them).
+	OtherDirectoryApps []SSOOtherApp `json:"otherDirectoryApps,omitempty"`
+}
+
+// SSOOtherApp is an app the organization can use in another directory.
+type SSOOtherApp struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	DirectoryID   string `json:"directoryId"`
+	DirectoryName string `json:"directoryName"`
 }
 
 // SSOSpec connects company sign-in.
@@ -301,6 +318,10 @@ type SSOSpec struct {
 	ClientID    string `json:"clientId"`
 	// ClientSecret is required the first time; empty keeps the stored one.
 	ClientSecret string `json:"clientSecret,omitempty"`
+	// PublicClient connects a client without a secret (PKCE). Also assumed
+	// when no secret is given to a qAuth issuer (its discovery serves
+	// qauth_api and takes token auth method "none"); never for another provider.
+	PublicClient bool `json:"publicClient,omitempty"`
 	// Mode is optional (default: a button) or required.
 	Mode string `json:"mode,omitempty"`
 }

@@ -356,6 +356,10 @@ keys generated in the test.
 
 ## Changes
 
+- **0.12.0** (2026-11-26): company sign-in and domains. `SSOSpec.PublicClient` (a client without a secret, PKCE, such
+  as another qAuth tenant's web client), `SSOConnection.PublicClient`, `SSOState.OtherDirectoryApps` (apps the
+  organization can use that sign in from another directory: company sign-in does not cover them), and
+  `AddedDomain.TXTName` / `TXTValue` (the TXT record to publish).
 - **0.11.0** (2026-11-26): child organizations from the parent. `NewSubOrg.ExternalID`; `SubOrgs.Create` takes
   `IdempotencyKey(key)` (a retry answers the same child; another request with the key is 409); `OrgClient.Rename`,
   `SetExternalID` and `SetLevels` (a direct child, from its parent: `org.suborgs.manage` / `org.suborgs.create`, or the

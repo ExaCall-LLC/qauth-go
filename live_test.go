@@ -181,7 +181,7 @@ func TestLiveDomains(t *testing.T) {
 	ctx := context.Background()
 	org := c.As("shop-admin-token").Org(s.Shop)
 	d := must(org.Domains.Add(ctx, "shop.test"))(t)
-	if d.Domain.Token == "" || d.Record != "_qauth-verify.shop.test" {
+	if d.Domain.Token == "" || d.Record != "_qauth-verify.shop.test" || d.TXTName != d.Record || d.TXTValue != d.Domain.Token {
 		t.Fatalf("%+v", d)
 	}
 	if n := len(must(org.Domains.List(ctx))(t).Items); n != 1 {
@@ -400,6 +400,10 @@ func TestLiveSSO(t *testing.T) {
 		t.Fatalf("%+v", st)
 	}
 	_, err := org.SSO.Set(ctx, SSOSpec{DisplayName: "Shop account", Issuer: "https://login.example.test", ClientID: "c", ClientSecret: "s"})
+	if e := wantStatus(t, err, 422); !strings.Contains(strings.ToLower(e.Message), "verify at least one email domain") {
+		t.Fatal(e.Message)
+	}
+	_, err = org.SSO.Set(ctx, SSOSpec{DisplayName: "Shop account", Issuer: "https://login.example.test", ClientID: "c", PublicClient: true})
 	if e := wantStatus(t, err, 422); !strings.Contains(strings.ToLower(e.Message), "verify at least one email domain") {
 		t.Fatal(e.Message)
 	}
