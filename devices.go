@@ -2,6 +2,7 @@ package qauth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"time"
@@ -226,6 +227,18 @@ type SessionSettings struct {
 	PairingAppTries    int            `json:"pairingAppTries"`
 	// IdleByType: -1 never idle (TVs by default), 0 the usual rule, or minutes.
 	IdleByType map[string]int `json:"idleByType"`
+	// The sign-in page: SigninForm email_first (default) | one_screen;
+	// no "Choose an account" list / last email / passkey autofill; "Email me
+	// a code"; emails at verified domains not sent to company sign-in.
+	SigninForm          string `json:"signinForm"`
+	SkipChooser         bool   `json:"skipChooser"`
+	SkipLastEmail       bool   `json:"skipLastEmail"`
+	SkipPasskeyAutofill bool   `json:"skipPasskeyAutofill"`
+	EmailCodeSignIn     bool   `json:"emailCodeSignIn"`
+	SkipCompanyByDomain bool   `json:"skipCompanyByDomain"`
+	// ReverifyOnReuse: when a reused shared sign-in asks a quick check:
+	// minutes (a JSON number), "always", "never" or "default".
+	ReverifyOnReuse json.RawMessage `json:"reverifyOnReuse,omitempty"`
 }
 
 // OrgSessionSettings are an organization's stricter settings for one app
@@ -247,6 +260,14 @@ type OrgSessionSettings struct {
 	NumberMatch       *bool          `json:"numberMatch,omitempty"`
 	FreshMinutes      *int           `json:"freshMinutes,omitempty"`
 	IdleByType        map[string]int `json:"idleByType,omitempty"`
+	// Sign-in page, only stricter: SigninForm only "email_first",
+	// SkipChooser / SkipLastEmail only true, EmailCodeSignIn only false.
+	SigninForm      *string `json:"signinForm,omitempty"`
+	SkipChooser     *bool   `json:"skipChooser,omitempty"`
+	SkipLastEmail   *bool   `json:"skipLastEmail,omitempty"`
+	EmailCodeSignIn *bool   `json:"emailCodeSignIn,omitempty"`
+	// ReverifyOnReuse: "always", or fewer minutes (a JSON number) than the app's rule.
+	ReverifyOnReuse json.RawMessage `json:"reverifyOnReuse,omitempty"`
 }
 
 // OrgSessionSettingsView is an organization's view of one app's settings.

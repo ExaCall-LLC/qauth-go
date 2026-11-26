@@ -348,7 +348,9 @@ type NewAPIKey struct {
 	Name string `json:"name"`
 	// Permissions are API permission ids (never more than you hold).
 	Permissions []string `json:"permissions,omitempty"`
-	// Scopes are qAuth's organization-API scopes (qauth:org:*).
+	// Scopes are qAuth's organization-API scopes (qauth:org:*). A key with
+	// only scopes (no permission) is for qAuth's organization routes: no API
+	// accepts it (/auth/validate answers 401).
 	Scopes []string `json:"scopes,omitempty"`
 	// Apps are app ids the key is for.
 	Apps      []string   `json:"apps,omitempty"`
@@ -732,8 +734,13 @@ type SessionState struct {
 	// IdleSecondsLeft and MaxSecondsLeft: -1 = never.
 	IdleSecondsLeft int `json:"idleSecondsLeft"`
 	MaxSecondsLeft  int `json:"maxSecondsLeft"`
-	// Ended is set when the session is over: signed_out | idle | max_length | client_removed.
+	// Ended is set when the session is over: signed_out | idle |
+	// max_length | client_removed | access_removed | suspended | replaced
+	// (signed out to make room at the app's session limit).
 	Ended string `json:"ended,omitempty"`
+	// PollSeconds: how often to ask when the session's stream can't stay
+	// open (the platform's setting; Sessions.Watch uses it).
+	PollSeconds int `json:"pollSeconds,omitempty"`
 }
 
 // StepUp is a completed step-up: when, and with which second step.

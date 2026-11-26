@@ -176,6 +176,10 @@ err = me.Account.Sessions.End(ctx, sessionID)
 n, err := me.Account.Sessions.EndAll(ctx)                   // signs out everywhere
 st, err := me.Account.Sessions.State(ctx, sid, clientID)    // idle rules and seconds left
 st, err = me.Account.Sessions.Activity(ctx, sid, clientID)  // "still here", at most once a minute
+// instant sign-out: a context that ends the moment the session does (run websockets/streams under it)
+wctx, stop := me.Account.Sessions.Watch(ctx, sid, qauth.WatchOptions{ClientID: clientID})
+defer stop()
+<-wctx.Done(); why := qauth.SessionEnded(wctx) // "" = stopped, or qauth.ErrTokenRefused
 
 // step-up: redirect to your authorize URL with qauth.StepUpParams (max_age=0), note startedAt, then
 last, err := client.As(newAccessToken).Account.LastStepUp(ctx, clientID) // nil: none
@@ -356,6 +360,16 @@ keys generated in the test.
 
 ## Changes
 
+- **0.14.1** (2026-11-26): docs only: an organization key may have only qAuth scopes (`qauth:org:*`) and no API permission; such a key is for qAuth's organization routes and can't use your API.
+- **0.14.0** (2026-11-26): instant sign-out. `Account.Sessions.Watch(ctx, sid, WatchOptions{ClientID})` keeps qAuth's
+  session stream open and cancels a context the moment the session ends (any reason, any qAuth instance), with
+  `SessionEnded(ctx)` saying why (`*SessionEndedError`; `ErrTokenRefused` when the token is no longer accepted); it
+  reconnects with backoff and polls the state meanwhile. `SessionState.PollSeconds`; `Ended` also names
+  `access_removed`, `suspended` and `replaced`.
+- **0.13.0** (2026-11-26): the sign-in page and "verify again when the shared sign-in is reused" in an app's session
+  settings and an organization's stricter override (`SigninForm`, `SkipChooser`, `SkipLastEmail`,
+  `SkipPasskeyAutofill`, `EmailCodeSignIn`, `SkipCompanyByDomain`, `ReverifyOnReuse`: minutes as a JSON number, or
+  `"always"`, `"never"`, `"default"`).
 - **0.12.0** (2026-11-26): company sign-in and domains. `SSOSpec.PublicClient` (a client without a secret, PKCE, such
   as another qAuth tenant's web client), `SSOConnection.PublicClient`, `SSOState.OtherDirectoryApps` (apps the
   organization can use that sign in from another directory: company sign-in does not cover them), and
