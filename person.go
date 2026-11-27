@@ -131,6 +131,16 @@ func (x *Verifications) Consume(ctx context.Context, requestID, template string,
 // Account is the person's own account. Removing a factor or making new
 // recovery codes needs a fresh Proof; wrong proofs count toward the
 // account's lockout.
+//
+// Changes to how the person signs in (password, authenticator app, phone,
+// passkeys, recovery codes) with your app's token also
+// need a recent sign-in to your app with their own credentials (the
+// platform's freshSignInMinutes) or a step-up there: else 403
+// FRESH_SIGN_IN_REQUIRED (send them to sign in again, then retry). A
+// password in the request never stands in for it, and the token must be a
+// JWT access token (opaque tokens can't). Personal tokens are made only in
+// qAuth's own My account (Console, Portal): Tokens.Create with your app's
+// token gets 403.
 type Account struct {
 	t *transport
 	// Sessions are the person's sign-in sessions.

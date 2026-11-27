@@ -239,6 +239,11 @@ type SessionSettings struct {
 	// ReverifyOnReuse: when a reused shared sign-in asks a quick check:
 	// minutes (a JSON number), "always", "never" or "default".
 	ReverifyOnReuse json.RawMessage `json:"reverifyOnReuse,omitempty"`
+	// EmbedPasskeyPage: the app's pages may embed qAuth's add-a-passkey
+	// page (/ui/passkeys/add; off by default).
+	EmbedPasskeyPage bool `json:"embedPasskeyPage"`
+	// EmbedPasskeyDevOrigins: localhost origins may embed it too (development).
+	EmbedPasskeyDevOrigins bool `json:"embedPasskeyDevOrigins"`
 }
 
 // OrgSessionSettings are an organization's stricter settings for one app

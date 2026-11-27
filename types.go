@@ -200,7 +200,9 @@ type NewMember struct {
 	Role Role `json:"role,omitempty"`
 	// RoleIDs are roles to give at once (ids from GivableRoles).
 	RoleIDs []string `json:"roleIds,omitempty"`
-	// Invite emails the person through your tenant's own email channel.
+	// Invite emails the person through your tenant's own email channel: a
+	// new account gets a single-use link (7 days) to choose its password,
+	// never a password; an existing account a note that it joined.
 	Invite bool `json:"invite,omitempty"`
 }
 
@@ -349,6 +351,16 @@ type APIKey struct {
 	CreatedAt   time.Time  `json:"createdAt"`
 	ExpiresAt   *time.Time `json:"expiresAt,omitempty"`
 	RevokedAt   *time.Time `json:"revokedAt,omitempty"`
+	// CreatedVia is the app whose token minted the key on the organization
+	// API; nil for keys made in qAuth's Console or Portal.
+	CreatedVia *KeyCreatedVia `json:"createdVia,omitempty"`
+}
+
+// KeyCreatedVia is the product that minted a key: its app and the OAuth
+// client_id of the person's token.
+type KeyCreatedVia struct {
+	AppID    string `json:"appId"`
+	ClientID string `json:"clientId"`
 }
 
 // NewAPIKey creates an organization API key.
@@ -361,8 +373,16 @@ type NewAPIKey struct {
 	// accepts it (/auth/validate answers 401).
 	Scopes []string `json:"scopes,omitempty"`
 	// Apps are app ids the key is for.
-	Apps      []string   `json:"apps,omitempty"`
+	Apps []string `json:"apps,omitempty"`
+	// ExpiresAt is required when your app mints the key (the organization
+	// API): at most the API's limit (default 90 days), else 422.
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	// Password, Code, PhoneCode: the person confirms it's them (403
+	// CONFIRM_NEEDED says which to ask): their password, plus a code from
+	// their authenticator app or by SMS.
+	Password  string `json:"password,omitempty"`
+	Code      string `json:"code,omitempty"`
+	PhoneCode string `json:"phoneCode,omitempty"`
 }
 
 // MintedAPIKey is a new key and its secret, shown ONCE.
@@ -540,8 +560,8 @@ type NewSubOrg struct {
 	// each API, the level directly below this organization's lowest level
 	// that has one below.
 	Levels map[string][]string `json:"levels,omitempty"`
-	// Invite emails the first admin (a new account's one-time password goes
-	// in the email). Always on for a new account when an organization
+	// Invite emails the first admin (a new account gets a single-use link to
+	// choose its password; no password in the email or the answer). Always on for a new account when an organization
 	// creates its child: it never sees a password. Needs a default email channel.
 	Invite bool `json:"invite,omitempty"`
 }
@@ -819,6 +839,9 @@ type KeyInfo struct {
 	// Permissions: API id -> permission keys, worked out live.
 	Permissions map[string][]string `json:"permissions,omitempty"`
 	ExpiresAt   *time.Time          `json:"expiresAt,omitempty"`
+	// CreatedVia is the app whose token minted the key; nil for keys made
+	// in qAuth's Console or Portal.
+	CreatedVia *KeyCreatedVia `json:"createdVia,omitempty"`
 }
 
 // KeyOwner is whose key it is.

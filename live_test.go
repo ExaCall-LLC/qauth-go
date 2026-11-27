@@ -197,9 +197,22 @@ func TestLiveDomains(t *testing.T) {
 func TestLiveAPIKeys(t *testing.T) {
 	c, s := live(t)
 	ctx := context.Background()
-	org := c.As("shop-admin-token").Org(s.Shop)
-	minted := must(org.APIKeys.Create(ctx, NewAPIKey{Name: "Billing sync", Apps: []string{s.App}}))(t)
-	if len(minted.Secret) <= 20 || minted.Key.Name != "Billing sync" {
+	// with an app's token: a fresh sign-in, the person's password, an end
+	// date within the API's limit (EXA-627)
+	_, err := c.As("shop-admin-token").Org(s.Shop).APIKeys.Create(ctx, NewAPIKey{Name: "Stale", Apps: []string{s.App}})
+	if e := wantStatus(t, err, 403); e.Code != "FRESH_SIGN_IN_REQUIRED" {
+		t.Fatalf("%+v", e)
+	}
+	org := c.As(s.FreshTokens["shop-admin"]).Org(s.Shop)
+	in30 := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+	_, err = org.APIKeys.Create(ctx, NewAPIKey{Name: "Billing sync", Apps: []string{s.App}, ExpiresAt: &in30})
+	if e := wantStatus(t, err, 403); e.Code != "CONFIRM_NEEDED" {
+		t.Fatalf("%+v", e)
+	}
+	_, err = org.APIKeys.Create(ctx, NewAPIKey{Name: "Billing sync", Apps: []string{s.App}, Password: "Pass-shop-admin-1!"})
+	wantStatus(t, err, 422)
+	minted := must(org.APIKeys.Create(ctx, NewAPIKey{Name: "Billing sync", Apps: []string{s.App}, ExpiresAt: &in30, Password: "Pass-shop-admin-1!"}))(t)
+	if len(minted.Secret) <= 20 || minted.Key.Name != "Billing sync" || minted.Key.CreatedVia == nil || minted.Key.CreatedVia.ClientID != "cid-fresh" || minted.Key.CreatedVia.AppID != s.App {
 		t.Fatalf("%+v", minted.Key)
 	}
 	b, _ := json.Marshal(must(org.APIKeys.List(ctx))(t))
@@ -207,7 +220,7 @@ func TestLiveAPIKeys(t *testing.T) {
 		t.Fatal("the list shows the secret")
 	}
 	kc := must(c.ValidateKey(ctx, minted.Secret, ValidateKeyOptions{App: s.App}))(t)
-	if !kc.Valid || kc.Key.OrgID != s.Shop {
+	if !kc.Valid || kc.Key.OrgID != s.Shop || kc.Key.CreatedVia == nil || kc.Key.CreatedVia.ClientID != "cid-fresh" {
 		t.Fatalf("%+v", kc)
 	}
 	if kc := must(c.ValidateKey(ctx, minted.Secret, ValidateKeyOptions{App: "another-app"}))(t); kc.Valid {
@@ -224,9 +237,9 @@ func TestLiveAPIKeys(t *testing.T) {
 func TestLiveAPIKeyPermissions(t *testing.T) {
 	c, s := live(t)
 	ctx := context.Background()
-	org := c.As("shop-admin-token").Org(s.Shop)
-	in90 := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
-	minted := must(org.APIKeys.Create(ctx, NewAPIKey{Name: "Contacts sync", Permissions: []string{s.Permission}, ExpiresAt: &in90}))(t)
+	org := c.As(s.FreshTokens["shop-admin"]).Org(s.Shop)
+	in90 := time.Now().Add(89 * 24 * time.Hour).UTC().Truncate(time.Second)
+	minted := must(org.APIKeys.Create(ctx, NewAPIKey{Name: "Contacts sync", Permissions: []string{s.Permission}, ExpiresAt: &in90, Password: "Pass-shop-admin-1!"}))(t)
 	if !slices.Equal(minted.Key.Permissions, []string{s.Permission}) {
 		t.Fatalf("%+v", minted.Key)
 	}
@@ -246,15 +259,24 @@ func TestLiveAPIKeyPermissions(t *testing.T) {
 func TestLivePersonalTokens(t *testing.T) {
 	c, s := live(t)
 	ctx := context.Background()
+	// minting is qAuth's own My account's only (EXA-489): a product's token
+	// is refused, even right after a sign-in
+	for _, tok := range []string{"shop-member-token", s.FreshTokens["shop-member"]} {
+		_, err := c.As(tok).Tokens.Create(ctx, NewPersonalToken{OrgID: s.Shop, Name: "x", Permissions: []string{s.Permission}})
+		if e := wantStatus(t, err, 403); !strings.Contains(e.Message, "qAuth's own My account") {
+			t.Fatalf("%+v", e)
+		}
+	}
 	me := c.As("shop-member-token")
 	choices := must(me.Tokens.Choices(ctx, s.Shop))(t).Items
 	if len(choices) != 1 || len(choices[0].Permissions) != 1 || choices[0].Permissions[0].Key != "contacts:read" {
 		t.Fatalf("%+v", choices)
 	}
-	tk := must(me.Tokens.Create(ctx, NewPersonalToken{OrgID: s.Shop, Name: "My script", Permissions: []string{s.Permission}}))(t)
-	if tk.Key.Kind != "pat" {
-		t.Fatalf("%+v", tk.Key)
-	}
+	tk := struct {
+		Key    struct{ ID string }
+		Secret string
+	}{Secret: s.PAT.Secret}
+	tk.Key.ID = s.PAT.ID // made in qAuth's My account (the test server)
 	kc := must(c.ValidateKey(ctx, tk.Secret, ValidateKeyOptions{}))(t)
 	if kc.Key.Kind != "pat" || !KeyMay(kc, s.API, "contacts:read") {
 		t.Fatalf("%+v", kc.Key)
@@ -512,9 +534,13 @@ func TestLiveSubOrgsKey(t *testing.T) {
 }
 
 func TestLiveMyAccount(t *testing.T) {
-	c, _ := live(t)
+	c, s := live(t)
 	ctx := context.Background()
-	me := c.As("shop-admin-token").Account
+	// changes to how they sign in need a recent sign-in to the product (EXA-489)
+	if e := wantStatus(t, c.As("shop-admin-token").Account.ChangePassword(ctx, "Pass-shop-admin-1!", "Brand-new-pass-1!"), 403); e.Code != "FRESH_SIGN_IN_REQUIRED" {
+		t.Fatalf("plain token: %+v", e)
+	}
+	me := c.As(s.FreshTokens["shop-admin"]).Account
 	sec := must(me.Security(ctx))(t)
 	if !sec.HasPassword || sec.Authenticator {
 		t.Fatalf("%+v", sec)
