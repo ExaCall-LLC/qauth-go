@@ -692,3 +692,14 @@ func TestLiveOrgDesign(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The app-page passkey calls reach qAuth and its refusals keep their code
+// (Omni accepts no passkeys in the test server: 403 PASSKEYS_OFF).
+func TestLiveAppPasskeys(t *testing.T) {
+	c, s := live(t)
+	ctx := context.Background()
+	_, err := c.As(s.FreshTokens["shop-admin"]).Account.Passkeys().Begin(ctx, "https://omni.test", false)
+	if e := wantStatus(t, err, 403); e.Code != "PASSKEYS_OFF" {
+		t.Fatalf("%+v", e)
+	}
+}

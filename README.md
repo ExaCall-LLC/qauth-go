@@ -194,6 +194,11 @@ c, err := me.Verifications.Check(ctx, v.RequestID, code)                 // veri
 v, err = me.Verifications.Resend(ctx, v.RequestID, qauth.VerifyOptions{Channel: "voice"})
 used, err := me.Verifications.Consume(ctx, v.RequestID, "Money transfer", map[string]string{"amount": "500"})
 // 409 unless verified by this person for exactly these values, and never used
+
+// add a passkey on your app's page (your server keeps the token; your page
+// runs navigator.credentials.create with begun.Options and posts the answer back)
+begun, err := me.Account.Passkeys().Begin(ctx, "https://app.example.com", false)
+added, err := me.Account.Passkeys().Finish(ctx, "https://app.example.com", begun.Ceremony, credentialJSON, "")
 ```
 
 ## The organization API
@@ -363,6 +368,7 @@ keys generated in the test.
 
 ## Changes
 
+- **0.18.0** (2026-11-28): add a passkey on your app's own page when your server keeps the tokens: `me.Account.Passkeys()` with `Begin(ctx, origin, popup)`, `Finish(ctx, origin, ceremony, credential, name)`, and the inline check `Step` / `VerifyStep` (403 `STEP_NEEDED` when the sign-in isn't fresh by the app's `passkeyAddFreshness`). `SessionSettings.PasskeyAddFreshness` ("session" or minutes) and `PasskeyAddDevOrigins`; `EmbedPasskeyPage` and `EmbedPasskeyDevOrigins` are retired (always false). See "Passkeys" in qAuth's docs (qAuth EXA-630).
 - **0.17.0** (2026-11-28): `SessionSettings.EmbedPasskeyPage`: the app's pages may embed qAuth's add-a-passkey page (`/ui/passkeys/add`; off by default); `EmbedPasskeyDevOrigins`: its localhost origins too (development only). See "Add a passkey from your app" in qAuth's docs (qAuth EXA-625).
 - **0.16.0** (2026-11-27): minting or revoking an organization's API key with your app's token (`APIKeys.Create`, `APIKeys.Revoke`) needs a recent sign-in to your app (the platform's `freshSignInMinutes`) or a step-up there, else 403 `FRESH_SIGN_IN_REQUIRED`; minting then asks the person to confirm it's them (`password`, `code`, `phoneCode`; 403 `CONFIRM_NEEDED`). Your app revokes only keys it minted (a Console key or another app's: 403). The key may use only your app's own APIs (403 otherwise), never qAuth's `qauth:org:*` scopes (403: make those in the Console), and `expiresAt` is required, at most the API's limit (default 90 days; 422). Keys carry `createdVia` (`appId`, `clientId`; null for Console keys), also in `ValidateKey` (qAuth EXA-627).
 - **0.15.4** (2026-11-26): comments only: `Invite` on adding a member or creating a child now says what qAuth does: a new account is emailed a single-use link (7 days) to choose its password; no password is ever emailed or returned.

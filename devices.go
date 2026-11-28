@@ -239,10 +239,15 @@ type SessionSettings struct {
 	// ReverifyOnReuse: when a reused shared sign-in asks a quick check:
 	// minutes (a JSON number), "always", "never" or "default".
 	ReverifyOnReuse json.RawMessage `json:"reverifyOnReuse,omitempty"`
-	// EmbedPasskeyPage: the app's pages may embed qAuth's add-a-passkey
-	// page (/ui/passkeys/add; off by default).
+	// PasskeyAddFreshness: adding a passkey from the app's own page:
+	// "session" (default) or minutes since the sign-in's second step (a
+	// JSON string or number).
+	PasskeyAddFreshness json.RawMessage `json:"passkeyAddFreshness,omitempty"`
+	// PasskeyAddDevOrigins: the add-a-passkey API answers localhost origins too (development).
+	PasskeyAddDevOrigins bool `json:"passkeyAddDevOrigins"`
+	// Deprecated: retired with the embedded add-a-passkey page (always false).
 	EmbedPasskeyPage bool `json:"embedPasskeyPage"`
-	// EmbedPasskeyDevOrigins: localhost origins may embed it too (development).
+	// Deprecated: retired (always false).
 	EmbedPasskeyDevOrigins bool `json:"embedPasskeyDevOrigins"`
 }
 
