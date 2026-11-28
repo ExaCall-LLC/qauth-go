@@ -1,6 +1,7 @@
 package qauth
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,6 +30,10 @@ type Error struct {
 	// RetryAfter is how long to wait before trying again (from Retry-After,
 	// on 429 and some 503 answers); 0 when qAuth did not say.
 	RetryAfter time.Duration
+	// Data is what came with the refusal, when qAuth sent something (the
+	// envelope's data, as JSON), e.g. the ways to confirm with a 403
+	// STEP_NEEDED (Begin reads it into a *StepNeededError).
+	Data json.RawMessage
 	// Err is the underlying cause, when there is one (network, JSON).
 	Err error
 }
@@ -63,7 +68,10 @@ const (
 	CodeConflict     = "CONFLICT"
 	CodeValidation   = "VALIDATION_ERROR"
 	CodeRateLimited  = "RATE_LIMITED"
-	CodeBadResponse  = "BAD_RESPONSE"
+	// CodeStepNeeded: the person's sign-in isn't fresh enough to add a
+	// passkey (403; AppPasskeys.Begin answers a *StepNeededError).
+	CodeStepNeeded  = "STEP_NEEDED"
+	CodeBadResponse = "BAD_RESPONSE"
 	// CodeUnexpectedRedirect: qAuth answered a redirect; the SDK never follows one.
 	CodeUnexpectedRedirect = "UNEXPECTED_REDIRECT"
 	// CodeUntrustedAPI: the issuer's discovery names a qAuth API host that
@@ -95,6 +103,7 @@ var (
 	ErrConflict           = &Error{Code: CodeConflict}
 	ErrValidation         = &Error{Code: CodeValidation}
 	ErrRateLimited        = &Error{Code: CodeRateLimited}
+	ErrStepNeeded         = &Error{Code: CodeStepNeeded}
 	ErrUnavailable        = &Error{Code: CodeUnavailable}
 	ErrUnexpectedRedirect = &Error{Code: CodeUnexpectedRedirect}
 	ErrInvalidArgument    = &Error{Code: CodeInvalidArgument}

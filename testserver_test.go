@@ -35,6 +35,11 @@ type seedInfo struct {
 	// FreshTokens: each person's product token from a sign-in just now
 	// (My account's security writes need one, EXA-489)
 	FreshTokens map[string]string `json:"freshTokens"`
+	// StepToken: pk-person's token from a sign-in with a password alone, to
+	// Studio (StepOrigin accepts passkeys): begin answers STEP_NEEDED with
+	// the ways ["code"] (authenticator code "123456") until the step passes
+	StepToken  string `json:"stepToken"`
+	StepOrigin string `json:"stepOrigin"`
 	// PAT: shop-member's personal token, made as qAuth's own My account would
 	PAT struct{ ID, Secret string } `json:"pat"`
 	// TVNumber: the number the waiting TV shows (number matching)

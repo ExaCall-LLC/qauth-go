@@ -373,6 +373,9 @@ func (t *transport) do(ctx context.Context, method, path string, q url.Values, b
 			}
 			e.Fields = env.Error.Fields
 		}
+		if len(env.Data) > 0 && string(env.Data) != "null" {
+			e.Data = env.Data
+		}
 		if e.Message == "" {
 			e.Message = fmt.Sprintf("HTTP %d", res.StatusCode)
 		}

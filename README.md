@@ -199,6 +199,13 @@ used, err := me.Verifications.Consume(ctx, v.RequestID, "Money transfer", map[st
 // runs navigator.credentials.create with begun.Options and posts the answer back)
 begun, err := me.Account.Passkeys().Begin(ctx, "https://app.example.com", false)
 added, err := me.Account.Passkeys().Finish(ctx, "https://app.example.com", begun.Ceremony, credentialJSON, "")
+// a sign-in that isn't fresh enough: *qauth.StepNeededError with the ways
+// (passkey, code, sms, email); confirm with Step + VerifyStep, then Begin again
+var step *qauth.StepNeededError
+if errors.As(err, &step) {
+	st, err := me.Account.Passkeys().Step(ctx, "https://app.example.com", step.Ways[0])
+	err = me.Account.Passkeys().VerifyStep(ctx, "https://app.example.com", st.Way, st.Step, nil, code)
+}
 ```
 
 ## The organization API
@@ -368,6 +375,7 @@ keys generated in the test.
 
 ## Changes
 
+- **0.19.0** (2026-11-28): `AppPasskeys.Begin` keeps the ways to confirm with: a 403 `STEP_NEEDED` is a `*StepNeededError` with `Ways` (`StepWayPasskey`, `StepWayCode`, `StepWaySMS`, `StepWayEmail`) and the app's `PasskeyAddFreshness`; it wraps the `*Error` (same `Status`, `Code`, `Message`; `errors.Is(err, ErrStepNeeded)`). `Error.Data` holds what came with any refusal. Before, the ways were dropped, and the doc named a `StepWays` that didn't exist. Nothing removed (qAuth EXA-639).
 - **0.18.0** (2026-11-28): add a passkey on your app's own page when your server keeps the tokens: `me.Account.Passkeys()` with `Begin(ctx, origin, popup)`, `Finish(ctx, origin, ceremony, credential, name)`, and the inline check `Step` / `VerifyStep` (403 `STEP_NEEDED` when the sign-in isn't fresh by the app's `passkeyAddFreshness`). `SessionSettings.PasskeyAddFreshness` ("session" or minutes) and `PasskeyAddDevOrigins`; `EmbedPasskeyPage` and `EmbedPasskeyDevOrigins` are retired (always false). See "Passkeys" in qAuth's docs (qAuth EXA-630).
 - **0.17.0** (2026-11-28): `SessionSettings.EmbedPasskeyPage`: the app's pages may embed qAuth's add-a-passkey page (`/ui/passkeys/add`; off by default); `EmbedPasskeyDevOrigins`: its localhost origins too (development only). See "Add a passkey from your app" in qAuth's docs (qAuth EXA-625).
 - **0.16.0** (2026-11-27): minting or revoking an organization's API key with your app's token (`APIKeys.Create`, `APIKeys.Revoke`) needs a recent sign-in to your app (the platform's `freshSignInMinutes`) or a step-up there, else 403 `FRESH_SIGN_IN_REQUIRED`; minting then asks the person to confirm it's them (`password`, `code`, `phoneCode`; 403 `CONFIRM_NEEDED`). Your app revokes only keys it minted (a Console key or another app's: 403). The key may use only your app's own APIs (403 otherwise), never qAuth's `qauth:org:*` scopes (403: make those in the Console), and `expiresAt` is required, at most the API's limit (default 90 days; 422). Keys carry `createdVia` (`appId`, `clientId`; null for Console keys), also in `ValidateKey` (qAuth EXA-627).

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -702,4 +703,41 @@ func TestLiveAppPasskeys(t *testing.T) {
 	if e := wantStatus(t, err, 403); e.Code != "PASSKEYS_OFF" {
 		t.Fatalf("%+v", e)
 	}
+}
+
+// STEP_NEEDED keeps the server's ways (EXA-639): Begin answers a
+// *StepNeededError with them; the inline step (code) then passes and Begin
+// no longer asks for it.
+func TestLiveAppPasskeysStepNeeded(t *testing.T) {
+	c, s := live(t)
+	ctx := context.Background()
+	pk := c.As(s.StepToken).Account.Passkeys()
+	_, err := pk.Begin(ctx, s.StepOrigin, false)
+	var step *StepNeededError
+	if !errors.As(err, &step) {
+		t.Fatalf("want *StepNeededError, got %T %v", err, err)
+	}
+	if !reflect.DeepEqual(step.Ways, []string{StepWayCode}) || string(step.PasskeyAddFreshness) != `"session"` {
+		t.Fatalf("ways %v, freshness %s", step.Ways, step.PasskeyAddFreshness)
+	}
+	// still an *Error with its code, status and message
+	if e := wantStatus(t, err, 403); e.Code != CodeStepNeeded || e.Message == "" || !errors.Is(err, ErrStepNeeded) {
+		t.Fatalf("%+v", e)
+	}
+	st, err := pk.Step(ctx, s.StepOrigin, step.Ways[0])
+	if err != nil || st.Way != StepWayCode {
+		t.Fatalf("%+v %v", st, err)
+	}
+	if err := pk.VerifyStep(ctx, s.StepOrigin, StepWayCode, "", nil, "000000"); err == nil {
+		t.Fatal("a wrong code passed")
+	}
+	if err := pk.VerifyStep(ctx, s.StepOrigin, StepWayCode, "", nil, "123456"); err != nil {
+		t.Fatal(err)
+	}
+	// fresh now: no STEP_NEEDED (the test server has no passkey engine: 503)
+	_, err = pk.Begin(ctx, s.StepOrigin, false)
+	if errors.As(err, &step) || errors.Is(err, ErrStepNeeded) {
+		t.Fatalf("still STEP_NEEDED: %v", err)
+	}
+	wantStatus(t, err, 503)
 }
