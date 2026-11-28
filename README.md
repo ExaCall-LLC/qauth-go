@@ -206,7 +206,14 @@ if errors.As(err, &step) {
 	st, err := me.Account.Passkeys().Step(ctx, "https://app.example.com", step.Ways[0])
 	err = me.Account.Passkeys().VerifyStep(ctx, "https://app.example.com", st.Way, st.Step, nil, code)
 }
+
+// your server relays: pass the person's browser so the passkey's name, the
+// notice email and the step's limits are theirs, not your server's
+me = client.AsBrowser(accessToken, qauth.Browser{UserAgent: r.UserAgent(), IP: browserIP})
 ```
+
+`UserAgent` and `IP` (headers `X-QAuth-Client-UA`, `X-QAuth-Client-IP`) never grant access. Which sign-in a
+token belongs to needs nothing from you: qAuth ties each access token to its sign-in when it issues it.
 
 ## The organization API
 
@@ -375,6 +382,9 @@ keys generated in the test.
 
 ## Changes
 
+- **0.20.0** (2026-11-28): `client.AsBrowser(token, qauth.Browser{UserAgent, IP})`: pass the person's browser's
+  User-Agent and address (`X-QAuth-Client-UA`, `X-QAuth-Client-IP`) for the passkey's name, the notice email, the audit
+  and the inline step's limits; never for access. `As` is unchanged (qAuth EXA-640).
 - **0.19.0** (2026-11-28): `AppPasskeys.Begin` keeps the ways to confirm with: a 403 `STEP_NEEDED` is a `*StepNeededError` with `Ways` (`StepWayPasskey`, `StepWayCode`, `StepWaySMS`, `StepWayEmail`) and the app's `PasskeyAddFreshness`; it wraps the `*Error` (same `Status`, `Code`, `Message`; `errors.Is(err, ErrStepNeeded)`). `Error.Data` holds what came with any refusal. Before, the ways were dropped, and the doc named a `StepWays` that didn't exist. Nothing removed (qAuth EXA-639).
 - **0.18.0** (2026-11-28): add a passkey on your app's own page when your server keeps the tokens: `me.Account.Passkeys()` with `Begin(ctx, origin, popup)`, `Finish(ctx, origin, ceremony, credential, name)`, and the inline check `Step` / `VerifyStep` (403 `STEP_NEEDED` when the sign-in isn't fresh by the app's `passkeyAddFreshness`). `SessionSettings.PasskeyAddFreshness` ("session" or minutes) and `PasskeyAddDevOrigins`; `EmbedPasskeyPage` and `EmbedPasskeyDevOrigins` are retired (always false). See "Passkeys" in qAuth's docs (qAuth EXA-630).
 - **0.17.0** (2026-11-28): `SessionSettings.EmbedPasskeyPage`: the app's pages may embed qAuth's add-a-passkey page (`/ui/passkeys/add`; off by default); `EmbedPasskeyDevOrigins`: its localhost origins too (development only). See "Add a passkey from your app" in qAuth's docs (qAuth EXA-625).
